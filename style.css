@@ -259,22 +259,34 @@ body {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-primary);
-  width: 20px;
-  height: 20px;
-  border-radius: 3px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 11px;
-  display: flex;
+  line-height: 1;
+  white-space: nowrap;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  gap: 4px;
   transition: all 0.15s;
+  flex-shrink: 0;
 }
 
 .btn-tiny:hover {
   background: var(--accent);
   border-color: var(--accent);
   color: white;
+}
+
+/* When inside api-response-header, push to the right */
+.api-response-header .btn-tiny {
+  margin-left: 0;
+}
+.api-response-header .btn-tiny:nth-of-type(1) {
+  margin-left: auto;
 }
 
 .file-tree, .api-list, .tables-list {

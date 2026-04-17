@@ -6,6 +6,18 @@ Avec éditeur multi-fichiers, preview live, proxy CORS, testeur API type Postman
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 ![Grist](https://img.shields.io/badge/Grist-Widget-6366f1)
 
+## 🌍 Utiliser le widget
+
+Deux miroirs disponibles — choisis celui qui te convient le mieux :
+
+| Miroir | URL | Notes |
+|--------|-----|-------|
+| **Vercel** ⭐ | https://grist-widget-studio-pro.vercel.app/ | Le plus rapide, auto-deploy sur push |
+| **GitHub Pages** | https://isaytoo.github.io/grist-widget-studio-pro/ | Directement depuis le repo GitHub |
+
+> Dans Grist : **Add New Widget → Custom → URL** → colle l'une des deux URLs ci-dessus.<br>
+> **Access level : Full document access**
+
 ## 🚀 Pourquoi ce widget ?
 
 Le [custom-widget-builder officiel](https://github.com/gristlabs/grist-widget/tree/master/custom-widget-builder) est minimaliste : 2 éditeurs HTML/JS, c'est tout. **Widget Studio Pro** apporte une expérience de développement professionnelle directement dans Grist :

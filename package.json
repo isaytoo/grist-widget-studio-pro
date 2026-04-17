@@ -1,0 +1,25 @@
+{
+  "name": "grist-widget-studio-pro",
+  "version": "1.0.0",
+  "description": "A powerful IDE to build custom Grist widgets with HTML/CSS/JS, live preview, CORS proxy, API tester, templates, and more.",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "grist",
+    "widget",
+    "studio",
+    "ide",
+    "custom-widget",
+    "monaco",
+    "cors-proxy"
+  ],
+  "author": "Said Hamadou (isaytoo)",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/isaytoo/grist-widget-studio-pro"
+  }
+}

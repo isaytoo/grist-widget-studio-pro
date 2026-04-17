@@ -1,0 +1,15 @@
+{
+  "name": "grist-widget-studio-proxy",
+  "version": "1.0.0",
+  "description": "CORS proxy for Grist Widget Studio Pro",
+  "main": "api/proxy.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "author": "Said Hamadou (isaytoo)",
+  "license": "Apache-2.0"
+}

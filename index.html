@@ -1,0 +1,796 @@
+<!--
+  Grist Widget Studio Pro
+  Copyright 2026 Said Hamadou (isaytoo)
+  Licensed under the Apache License, Version 2.0
+  https://github.com/isaytoo/grist-widget-studio-pro
+-->
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grist Widget Studio Pro</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.47.0/min/vs/editor/editor.main.css">
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+</head>
+<body>
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">Widget Studio <span class="logo-pro">PRO</span></span>
+      </div>
+      <div class="project-name" id="projectName" contenteditable="true">Mon Widget</div>
+    </div>
+    <div class="topbar-center">
+      <button class="btn-toolbar" id="btnRun" title="Lancer preview (Ctrl+Enter)">
+        <span class="icon">▶</span> Preview
+      </button>
+      <button class="btn-toolbar" id="btnSave" title="Sauvegarder (Ctrl+S)">
+        <span class="icon">💾</span> Sauvegarder
+      </button>
+      <button class="btn-toolbar" id="btnInstall" title="Installer dans ce widget">
+        <span class="icon">📦</span> Installer
+      </button>
+      <span class="separator-v"></span>
+      <button class="btn-toolbar" id="btnTemplates" title="Templates">
+        <span class="icon">📚</span> Templates
+      </button>
+      <button class="btn-toolbar" id="btnPackages" title="Packages CDN">
+        <span class="icon">📦</span> Packages
+      </button>
+      <button class="btn-toolbar" id="btnExport" title="Exporter en ZIP">
+        <span class="icon">⬇</span> Export
+      </button>
+      <button class="btn-toolbar" id="btnImport" title="Importer un ZIP">
+        <span class="icon">⬆</span> Import
+      </button>
+      <span class="separator-v"></span>
+      <button class="btn-toolbar" id="btnProxySettings" title="Configuration du proxy CORS">
+        <span class="icon">🔌</span> Proxy
+      </button>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-icon" id="btnTheme" title="Changer de thème">
+        <span id="themeIcon">☀️</span>
+      </button>
+      <button class="btn-icon" id="btnHelp" title="Aide">?</button>
+      <span class="status-indicator" id="statusIndicator">
+        <span class="dot"></span>
+        <span id="statusText">Prêt</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ============ MAIN LAYOUT ============ -->
+  <main class="main-layout">
+    <!-- Left Sidebar: File Explorer -->
+    <aside class="sidebar-left" id="sidebarLeft">
+      <div class="sidebar-section">
+        <div class="sidebar-header">
+          <span>EXPLORER</span>
+          <button class="btn-tiny" id="btnAddFile" title="Nouveau fichier">+</button>
+        </div>
+        <div class="file-tree" id="fileTree">
+          <!-- Files dynamically added -->
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-header">
+          <span>API COLLECTIONS</span>
+          <button class="btn-tiny" id="btnAddApi" title="Nouvelle API">+</button>
+        </div>
+        <div class="api-list" id="apiList">
+          <div class="empty-state">Aucune API. Clique + pour en ajouter.</div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-header">
+          <span>GRIST TABLES</span>
+          <button class="btn-tiny" id="btnRefreshTables" title="Rafraîchir">↻</button>
+        </div>
+        <div class="tables-list" id="tablesList">
+          <div class="empty-state">Chargement...</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Resize handle -->
+    <div class="resizer resizer-left" id="resizerLeft"></div>
+
+    <!-- Center: Editor -->
+    <section class="center-panel">
+      <div class="tabs-bar" id="tabsBar">
+        <!-- Tabs dynamically added -->
+      </div>
+      <div class="editor-container" id="editorContainer"></div>
+    </section>
+
+    <!-- Resize handle -->
+    <div class="resizer resizer-right" id="resizerRight"></div>
+
+    <!-- Right: Preview & Tools -->
+    <aside class="sidebar-right" id="sidebarRight">
+      <div class="preview-header">
+        <div class="preview-tabs">
+          <button class="preview-tab active" data-tab="preview">👁 Preview</button>
+          <button class="preview-tab" data-tab="api">🌐 API</button>
+          <button class="preview-tab" data-tab="console">🐛 Console</button>
+          <button class="preview-tab" data-tab="network">📡 Network</button>
+        </div>
+        <div class="preview-controls">
+          <select id="deviceSelect" class="select-small">
+            <option value="desktop">💻 Desktop</option>
+            <option value="tablet">📱 Tablet (768px)</option>
+            <option value="mobile">📱 Mobile (375px)</option>
+          </select>
+          <button class="btn-icon-small" id="btnReload" title="Reload (Ctrl+R)">↻</button>
+          <button class="btn-icon-small" id="btnFullscreen" title="Plein écran">⛶</button>
+        </div>
+      </div>
+      
+      <!-- Preview Panel -->
+      <div class="preview-panel active" id="panelPreview">
+        <div class="preview-frame-wrapper" id="previewWrapper">
+          <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups" class="preview-frame"></iframe>
+        </div>
+      </div>
+
+      <!-- API Tester Panel -->
+      <div class="preview-panel" id="panelApi">
+        <div class="api-tester">
+          <div class="api-request-bar">
+            <select id="apiMethod" class="api-method">
+              <option>GET</option>
+              <option>POST</option>
+              <option>PUT</option>
+              <option>PATCH</option>
+              <option>DELETE</option>
+            </select>
+            <input type="text" id="apiUrl" class="api-url" placeholder="https://api.example.com/endpoint">
+            <label class="cors-toggle">
+              <input type="checkbox" id="useCorsProxy" checked>
+              <span>CORS Proxy</span>
+            </label>
+            <button class="btn-send" id="btnSendApi">Send</button>
+          </div>
+          <div class="api-tabs">
+            <button class="api-tab active" data-api-tab="headers">Headers</button>
+            <button class="api-tab" data-api-tab="auth">Auth</button>
+            <button class="api-tab" data-api-tab="body">Body</button>
+            <button class="api-tab" data-api-tab="params">Params</button>
+          </div>
+          <div class="api-content" id="apiContent">
+            <div class="api-panel active" data-api-panel="headers">
+              <div class="kv-editor" id="headersEditor"></div>
+              <button class="btn-add-row" data-target="headersEditor">+ Header</button>
+            </div>
+            <div class="api-panel" data-api-panel="auth">
+              <select id="authType" class="select-full">
+                <option value="none">Aucune</option>
+                <option value="bearer">Bearer Token</option>
+                <option value="basic">Basic Auth</option>
+                <option value="apikey">API Key</option>
+              </select>
+              <div id="authFields"></div>
+            </div>
+            <div class="api-panel" data-api-panel="body">
+              <select id="bodyType" class="select-full">
+                <option value="none">Aucun</option>
+                <option value="json">JSON</option>
+                <option value="form">Form Data</option>
+                <option value="raw">Raw Text</option>
+              </select>
+              <textarea id="bodyContent" class="body-textarea" placeholder='{"key": "value"}'></textarea>
+            </div>
+            <div class="api-panel" data-api-panel="params">
+              <div class="kv-editor" id="paramsEditor"></div>
+              <button class="btn-add-row" data-target="paramsEditor">+ Param</button>
+            </div>
+          </div>
+          <div class="api-response">
+            <div class="api-response-header">
+              <span id="responseStatus" class="response-status">—</span>
+              <span id="responseTime" class="response-time"></span>
+              <span id="responseSize" class="response-size"></span>
+              <button class="btn-tiny" id="btnCopyResponse">📋 Copy</button>
+              <button class="btn-tiny" id="btnUseInCode">→ Utiliser dans le code</button>
+            </div>
+            <pre id="responseBody" class="response-body">Envoie une requête pour voir la réponse ici...</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Console Panel -->
+      <div class="preview-panel" id="panelConsole">
+        <div class="console-header">
+          <button class="btn-tiny" id="btnClearConsole">🗑 Clear</button>
+          <label class="filter-check"><input type="checkbox" checked data-level="log"> Logs</label>
+          <label class="filter-check"><input type="checkbox" checked data-level="warn"> Warnings</label>
+          <label class="filter-check"><input type="checkbox" checked data-level="error"> Errors</label>
+          <label class="filter-check"><input type="checkbox" checked data-level="info"> Info</label>
+        </div>
+        <div class="console-output" id="consoleOutput"></div>
+      </div>
+
+      <!-- Network Panel -->
+      <div class="preview-panel" id="panelNetwork">
+        <div class="network-header">
+          <button class="btn-tiny" id="btnClearNetwork">🗑 Clear</button>
+          <span id="networkCount">0 requêtes</span>
+        </div>
+        <div class="network-list" id="networkList"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ============ MODALS ============ -->
+  <!-- Templates Modal -->
+  <div class="modal" id="modalTemplates">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-wide">
+      <div class="modal-header">
+        <h2>📚 Templates</h2>
+        <button class="modal-close" data-close="modalTemplates">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="templates-filter">
+          <input type="search" id="templatesSearch" placeholder="Rechercher un template...">
+          <div class="templates-tags" id="templatesTags"></div>
+        </div>
+        <div class="templates-grid" id="templatesGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Packages Modal -->
+  <div class="modal" id="modalPackages">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📦 Packages CDN</h2>
+        <button class="modal-close" data-close="modalPackages">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-description">Ajoute des bibliothèques via CDN (jsDelivr, unpkg). Elles seront automatiquement incluses dans ton widget.</p>
+        <div class="package-search">
+          <input type="text" id="packageSearch" placeholder="Nom du package (ex: chart.js, d3, leaflet)...">
+          <button class="btn-primary" id="btnAddPackage">Ajouter</button>
+        </div>
+        <div class="packages-suggestions">
+          <span class="pkg-tag" data-pkg="chart.js">Chart.js</span>
+          <span class="pkg-tag" data-pkg="d3">D3.js</span>
+          <span class="pkg-tag" data-pkg="leaflet">Leaflet</span>
+          <span class="pkg-tag" data-pkg="lodash">Lodash</span>
+          <span class="pkg-tag" data-pkg="dayjs">Day.js</span>
+          <span class="pkg-tag" data-pkg="axios">Axios</span>
+          <span class="pkg-tag" data-pkg="alpinejs">Alpine.js</span>
+          <span class="pkg-tag" data-pkg="htmx.org">HTMX</span>
+          <span class="pkg-tag" data-pkg="three">Three.js</span>
+          <span class="pkg-tag" data-pkg="@grapecity/spread-sheets">SpreadJS</span>
+        </div>
+        <div class="packages-installed">
+          <h3>Installés</h3>
+          <div id="packagesList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Proxy Settings Modal -->
+  <div class="modal" id="modalProxy">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-wide">
+      <div class="modal-header">
+        <h2>🔌 Configuration du Proxy CORS</h2>
+        <button class="modal-close" data-close="modalProxy">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="proxy-intro">
+          <h3 style="margin:0 0 8px;font-size:14px;color:var(--accent);">💡 C'est quoi un proxy CORS&nbsp;?</h3>
+          <p class="modal-description" style="margin:0;">
+            Quand ton widget appelle une API externe (ex:&nbsp;OpenWeather, GitHub…), le navigateur bloque souvent la requête pour des raisons de sécurité&nbsp;: c'est le <strong>blocage CORS</strong>.
+            Un proxy est un petit serveur intermédiaire qui fait la requête <em>à ta place</em> et te renvoie la réponse sans blocage.
+          </p>
+        </div>
+        
+        <h3 style="font-size:13px;margin:18px 0 8px;color:var(--text-primary);">Comment veux-tu gérer les appels API&nbsp;?</h3>
+        <div class="proxy-mode">
+          <label class="radio-card">
+            <input type="radio" name="proxyMode" value="none">
+            <div class="radio-card-content">
+              <strong>🚫 Sans proxy</strong>
+              <small>J'appelle uniquement des APIs qui autorisent déjà mon site. Les autres retourneront une erreur "CORS".</small>
+            </div>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="proxyMode" value="custom" checked>
+            <div class="radio-card-content">
+              <strong>✨ Avec mon proxy (recommandé)</strong>
+              <small>J'installe un petit serveur relais (gratuit, 2&nbsp;min de config) pour contourner les blocages CORS.</small>
+            </div>
+          </label>
+        </div>
+
+        <div class="proxy-config" id="proxyConfig">
+          <div class="proxy-field">
+            <label>Adresse de ton proxy</label>
+            <div class="proxy-url-row">
+              <input type="text" id="proxyUrl" placeholder="https://mon-proxy.workers.dev" class="input-text">
+              <button class="btn-primary" id="btnTestProxy">Vérifier</button>
+            </div>
+            <small>Colle ici l'URL que tu as obtenue après avoir déployé ton proxy (étape ci-dessous).</small>
+            <div id="proxyTestResult" class="proxy-test-result"></div>
+          </div>
+
+          <div class="proxy-field">
+            <label>Mot de passe du proxy (facultatif)</label>
+            <input type="password" id="proxyToken" placeholder="Laisse vide si tu n'as pas configuré de mot de passe" class="input-text">
+            <small>Si tu as protégé ton proxy avec un <code>PROXY_TOKEN</code>, saisis-le ici. Sinon laisse vide.</small>
+          </div>
+        </div>
+
+        <h3>🚀 Je n'ai pas encore de proxy&nbsp;: comment en créer un&nbsp;?</h3>
+        <p class="modal-description">
+          Choisis un hébergeur ci-dessous&nbsp;: tous proposent un <strong>plan gratuit</strong> largement suffisant.
+          Clique sur une vignette&nbsp;: les instructions détaillées s'affichent juste en-dessous.
+        </p>
+        
+        <div class="deploy-grid">
+          <div class="deploy-card" data-platform="cloudflare">
+            <div class="deploy-icon">⚡</div>
+            <div class="deploy-name">Cloudflare Workers</div>
+            <div class="deploy-badge free">100k appels/jour</div>
+            <div class="deploy-speed">⭐ Le plus rapide</div>
+          </div>
+          <div class="deploy-card" data-platform="vercel">
+            <div class="deploy-icon">▲</div>
+            <div class="deploy-name">Vercel</div>
+            <div class="deploy-badge free">100 Go-h/mois</div>
+            <div class="deploy-speed">Simple et populaire</div>
+          </div>
+          <div class="deploy-card" data-platform="deno">
+            <div class="deploy-icon">🦕</div>
+            <div class="deploy-name">Deno Deploy</div>
+            <div class="deploy-badge free">1 M appels/mois</div>
+            <div class="deploy-speed">Le plus généreux</div>
+          </div>
+          <div class="deploy-card" data-platform="netlify">
+            <div class="deploy-icon">🟢</div>
+            <div class="deploy-name">Netlify</div>
+            <div class="deploy-badge free">125k appels/mois</div>
+            <div class="deploy-speed">Alternative à Vercel</div>
+          </div>
+          <div class="deploy-card" data-platform="node">
+            <div class="deploy-icon">🟩</div>
+            <div class="deploy-name">Node / Docker</div>
+            <div class="deploy-badge self">Sur ton serveur</div>
+            <div class="deploy-speed">VPS, Raspberry Pi…</div>
+          </div>
+          <a class="deploy-card" href="https://github.com/isaytoo/grist-widget-studio-pro/tree/main/proxy" target="_blank" data-platform="github">
+            <div class="deploy-icon">📚</div>
+            <div class="deploy-name">Voir le code source</div>
+            <div class="deploy-badge">GitHub</div>
+            <div class="deploy-speed">Documentation complète</div>
+          </a>
+        </div>
+
+        <details class="deploy-instructions" id="deployInstructions">
+          <summary>📖 Voir les instructions pas-à-pas</summary>
+          <div id="deployInstructionsContent">
+            <p style="font-size:12px;color:var(--text-muted);">👆 Clique sur une plateforme ci-dessus pour afficher ses instructions.</p>
+          </div>
+        </details>
+
+        <div class="modal-actions">
+          <button class="btn-primary" id="btnSaveProxy">💾 Enregistrer la configuration</button>
+          <button class="btn-secondary" data-close="modalProxy">Fermer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div class="modal" id="modalHelp">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-wide">
+      <div class="modal-header">
+        <h2>❓ Aide - Widget Studio Pro</h2>
+        <button class="modal-close" data-close="modalHelp">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Help Navigation Tabs -->
+        <div class="help-tabs">
+          <button class="help-tab active" data-help-tab="intro">👋 Introduction</button>
+          <button class="help-tab" data-help-tab="interface">🖥 Interface</button>
+          <button class="help-tab" data-help-tab="workflow">🚀 Premier widget</button>
+          <button class="help-tab" data-help-tab="grist-api">🌐 API Grist</button>
+          <button class="help-tab" data-help-tab="api-tester">📡 API Tester</button>
+          <button class="help-tab" data-help-tab="proxy">🔌 Proxy CORS</button>
+          <button class="help-tab" data-help-tab="shortcuts">⌨️ Raccourcis</button>
+          <button class="help-tab" data-help-tab="faq">💡 FAQ</button>
+        </div>
+
+        <!-- INTRO -->
+        <div class="help-panel active" data-help-panel="intro">
+          <h3>Bienvenue dans Widget Studio Pro ⚡</h3>
+          <p>Un <strong>IDE complet dans ton navigateur</strong> pour créer des widgets Grist personnalisés, sans installer d'outils, directement dans ton document Grist.</p>
+          
+          <h4>✨ Fonctionnalités principales</h4>
+          <ul class="feature-list">
+            <li><strong>📝 Monaco Editor</strong> — l'éditeur de VS Code, avec IntelliSense pour l'API Grist</li>
+            <li><strong>📁 Multi-fichiers</strong> — HTML, CSS, JS, JSON, tu peux en ajouter autant que tu veux</li>
+            <li><strong>👁 Live Preview</strong> — hot-reload automatique à chaque modification</li>
+            <li><strong>📡 API Tester</strong> — type Postman intégré, avec support auth (Bearer, Basic, API Key)</li>
+            <li><strong>🔌 Proxy CORS</strong> — déploie le tien en 2 min sur Cloudflare, Vercel, Deno, Netlify, Docker</li>
+            <li><strong>🐛 Console & Network</strong> — debug complet avec filtres</li>
+            <li><strong>📚 Templates</strong> — 8 templates prêts à l'emploi (Charts, Map, Kanban, Form, etc.)</li>
+            <li><strong>📦 Package Manager</strong> — ajoute Chart.js, D3, Leaflet... en 1 clic</li>
+            <li><strong>💾 Sauvegarde Grist</strong> — ton projet est stocké dans le document Grist</li>
+            <li><strong>⬇⬆ Export/Import ZIP</strong> — sauvegarde, partage, versionne</li>
+            <li><strong>🌙 Dark / Light mode</strong></li>
+          </ul>
+
+          <h4>🎯 Pour qui ?</h4>
+          <p>Pour tous les utilisateurs Grist qui veulent étendre leurs documents avec des widgets sur mesure :<br>
+          dashboards personnalisés, intégrations d'APIs externes, formulaires avancés, visualisations, outils métier...</p>
+        </div>
+
+        <!-- INTERFACE -->
+        <div class="help-panel" data-help-panel="interface">
+          <h3>🖥 Anatomie de l'interface</h3>
+          
+          <h4>Barre d'outils (haut)</h4>
+          <table class="help-table">
+            <tr><td><strong>▶ Preview</strong></td><td>Lance / rafraîchit la prévisualisation</td></tr>
+            <tr><td><strong>💾 Sauvegarder</strong></td><td>Enregistre le projet dans les options du widget Grist</td></tr>
+            <tr><td><strong>📦 Installer</strong></td><td>Transforme le widget courant en widget autonome (consomme l'installation)</td></tr>
+            <tr><td><strong>📚 Templates</strong></td><td>Ouvre la bibliothèque de templates prêts à l'emploi</td></tr>
+            <tr><td><strong>📦 Packages</strong></td><td>Ajoute des bibliothèques externes (Chart.js, D3, etc.) via CDN</td></tr>
+            <tr><td><strong>⬇ Export</strong></td><td>Télécharge ton projet en ZIP</td></tr>
+            <tr><td><strong>⬆ Import</strong></td><td>Charge un projet depuis un fichier ZIP/JSON</td></tr>
+            <tr><td><strong>🔌 Proxy</strong></td><td>Configure l'URL de ton proxy CORS (pour les appels API externes)</td></tr>
+            <tr><td><strong>☀️/🌙</strong></td><td>Bascule dark / light mode</td></tr>
+          </table>
+
+          <h4>Sidebar gauche</h4>
+          <ul class="feature-list">
+            <li><strong>EXPLORER</strong> — Arborescence de tes fichiers (+ pour en ajouter)</li>
+            <li><strong>API COLLECTIONS</strong> — Sauvegarde tes requêtes API récurrentes</li>
+            <li><strong>GRIST TABLES</strong> — Explore les tables du document (clique pour inspecter)</li>
+          </ul>
+
+          <h4>Panneau droit (preview + outils)</h4>
+          <ul class="feature-list">
+            <li><strong>👁 Preview</strong> — Ton widget en live, avec choix de taille (Desktop/Tablet/Mobile)</li>
+            <li><strong>🌐 API</strong> — Testeur de requêtes API avec Headers/Auth/Body/Params</li>
+            <li><strong>🐛 Console</strong> — Les <code>console.log</code> de ton widget, avec filtres par niveau</li>
+            <li><strong>📡 Network</strong> — Historique de toutes les requêtes API avec timing</li>
+          </ul>
+        </div>
+
+        <!-- WORKFLOW -->
+        <div class="help-panel" data-help-panel="workflow">
+          <h3>🚀 Créer ton premier widget en 5 minutes</h3>
+          
+          <div class="step-box">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <strong>Choisis un template</strong>
+              <p>Clique sur <strong>📚 Templates</strong> et choisis par exemple "Record Viewer" (affiche les détails du record sélectionné).</p>
+            </div>
+          </div>
+
+          <div class="step-box">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <strong>Édite le code</strong>
+              <p>Modifie <code>script.js</code>, <code>style.css</code>, <code>index.html</code>.<br>
+              Le preview s'actualise automatiquement <strong>600ms après</strong> chaque modification.</p>
+            </div>
+          </div>
+
+          <div class="step-box">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <strong>Teste avec tes données Grist</strong>
+              <p>Clique sur une table dans la sidebar <strong>GRIST TABLES</strong> pour voir sa structure dans la console. Utilise <code>grist.docApi.fetchTable('MaTable')</code> dans ton code.</p>
+            </div>
+          </div>
+
+          <div class="step-box">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <strong>Sauvegarde</strong>
+              <p>Appuie sur <kbd>Ctrl</kbd>+<kbd>S</kbd> ou clique sur <strong>💾 Sauvegarder</strong>. Ton projet est stocké dans les options du widget Grist — il sera rechargé à chaque ouverture.</p>
+            </div>
+          </div>
+
+          <div class="step-box">
+            <div class="step-num">5</div>
+            <div class="step-content">
+              <strong>Installer le widget</strong>
+              <p>Quand tu es satisfait, clique sur <strong>📦 Installer</strong>. Le widget Studio Pro devient ton widget final, prêt à être utilisé dans le document.</p>
+              <p><em>💡 Astuce : garde une copie de ton projet en ZIP (⬇ Export) avant d'installer, pour pouvoir revenir en arrière.</em></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- GRIST API -->
+        <div class="help-panel" data-help-panel="grist-api">
+          <h3>🌐 API Grist - Cheat Sheet</h3>
+          
+          <h4>Initialisation</h4>
+          <pre><code>// En lecture seule
+grist.ready({ requiredAccess: 'read table' });
+
+// En lecture/écriture (pour modifier des records)
+grist.ready({ requiredAccess: 'full' });</code></pre>
+
+          <h4>Lire les données</h4>
+          <pre><code>// Écouter le record sélectionné
+grist.onRecord(record => {
+  console.log('Record:', record);
+});
+
+// Écouter tous les records de la table liée
+grist.onRecords(records => {
+  console.log('Records:', records);
+});
+
+// Récupérer toute une table (format colonnaire)
+const data = await grist.docApi.fetchTable('MaTable');
+// → { id: [1,2,3], Name: ['A','B','C'], ... }
+
+// Liste des tables du document
+const tables = await grist.docApi.listTables();</code></pre>
+
+          <h4>Modifier les données</h4>
+          <pre><code>// Ajouter un record
+await grist.docApi.applyUserActions([
+  ['AddRecord', 'MaTable', null, { Name: 'Alice', Age: 30 }]
+]);
+
+// Modifier un record
+await grist.docApi.applyUserActions([
+  ['UpdateRecord', 'MaTable', rowId, { Status: 'Done' }]
+]);
+
+// Supprimer un record
+await grist.docApi.applyUserActions([
+  ['RemoveRecord', 'MaTable', rowId]
+]);
+
+// Ajouts/mises à jour en masse
+await grist.docApi.applyUserActions([
+  ['BulkAddRecord', 'MaTable', [null, null],
+    { Name: ['Bob', 'Carol'], Age: [25, 35] }]
+]);</code></pre>
+
+          <h4>Créer des tables/colonnes</h4>
+          <pre><code>await grist.docApi.applyUserActions([
+  ['AddTable', 'NouvelleTable', [
+    { id: 'Name', type: 'Text' },
+    { id: 'Count', type: 'Int' }
+  ]]
+]);</code></pre>
+
+          <h4>Options du widget (persistance)</h4>
+          <pre><code>// Sauvegarder
+await grist.setOptions({ myConfig: { ... } });
+
+// Lire
+const options = await grist.getOptions();</code></pre>
+        </div>
+
+        <!-- API TESTER -->
+        <div class="help-panel" data-help-panel="api-tester">
+          <h3>📡 Testeur d'API (type Postman)</h3>
+          
+          <p>L'onglet <strong>🌐 API</strong> dans le panneau droit te permet de tester des APIs externes <strong>avant de les intégrer</strong> dans ton widget.</p>
+
+          <h4>Workflow typique</h4>
+          <ol class="feature-list">
+            <li>Choisis la méthode (GET, POST, PUT, PATCH, DELETE)</li>
+            <li>Entre l'URL</li>
+            <li>Configure :
+              <ul>
+                <li><strong>Headers</strong> — paires clé/valeur</li>
+                <li><strong>Auth</strong> — Aucune / Bearer Token / Basic Auth / API Key</li>
+                <li><strong>Body</strong> — JSON / Form Data / Raw Text (pour POST/PUT/PATCH)</li>
+                <li><strong>Params</strong> — query string params</li>
+              </ul>
+            </li>
+            <li>Coche <strong>CORS Proxy</strong> si l'API bloque les requêtes cross-origin</li>
+            <li>Clique <strong>Send</strong></li>
+            <li>Réponse affichée avec status/temps/taille</li>
+          </ol>
+
+          <h4>🎁 Génération de code automatique</h4>
+          <p>Clique sur <strong>→ Utiliser dans le code</strong> pour générer un snippet <code>fetch()</code> complet et l'insérer directement dans <code>script.js</code>. Le snippet utilise automatiquement ton proxy configuré.</p>
+
+          <h4>Exemples d'APIs publiques pour tester</h4>
+          <ul class="feature-list">
+            <li><code>https://api.github.com/users/octocat</code> — API GitHub</li>
+            <li><code>https://jsonplaceholder.typicode.com/posts</code> — Données test</li>
+            <li><code>https://api.openweathermap.org/data/2.5/weather?q=Paris&appid=YOUR_KEY</code> — Météo</li>
+            <li><code>https://restcountries.com/v3.1/name/france</code> — Données pays</li>
+          </ul>
+        </div>
+
+        <!-- PROXY -->
+        <div class="help-panel" data-help-panel="proxy">
+          <h3>🔌 Proxy CORS - Pourquoi et comment</h3>
+          
+          <h4>Pourquoi un proxy ?</h4>
+          <p>Beaucoup d'APIs refusent les requêtes venant d'autres domaines (<strong>CORS</strong> = Cross-Origin Resource Sharing). Le navigateur bloque alors la requête depuis ton widget.</p>
+          <p>Un proxy CORS est un petit serveur qui relaie ta requête : l'API parle au serveur (pas de problème CORS), et le serveur te répond en autorisant ton domaine.</p>
+
+          <h4>🎯 Pourquoi ton propre proxy ?</h4>
+          <p>Plutôt que d'utiliser un proxy public partagé (risqué, limité, instable), <strong>déploie le tien en 2 minutes</strong> sur la plateforme de ton choix. Tu gardes le contrôle total : coûts, sécurité, quotas, logs.</p>
+
+          <h4>🚀 Plateformes supportées</h4>
+          <table class="help-table">
+            <tr>
+              <td>⚡ <strong>Cloudflare Workers</strong></td>
+              <td>100k req/jour gratuites</td>
+              <td>⭐ Recommandé (ultra rapide, edge)</td>
+            </tr>
+            <tr>
+              <td>▲ <strong>Vercel</strong></td>
+              <td>100 Go-h/mois</td>
+              <td>Simple, populaire</td>
+            </tr>
+            <tr>
+              <td>🦕 <strong>Deno Deploy</strong></td>
+              <td>1M req/mois</td>
+              <td>Le plus généreux</td>
+            </tr>
+            <tr>
+              <td>🟢 <strong>Netlify</strong></td>
+              <td>125k req/mois</td>
+              <td>Alternative à Vercel</td>
+            </tr>
+            <tr>
+              <td>🟩 <strong>Node.js/Docker</strong></td>
+              <td>Selon ton infra</td>
+              <td>Self-hosted (VPS, RPi)</td>
+            </tr>
+          </table>
+
+          <h4>📝 Configuration</h4>
+          <ol class="feature-list">
+            <li>Clique sur <strong>🔌 Proxy</strong> dans la barre d'outils</li>
+            <li>Choisis une plateforme → tu verras les instructions exactes</li>
+            <li>Déploie ton proxy (en général 1 commande terminal)</li>
+            <li>Copie l'URL publique du proxy</li>
+            <li>Colle-la dans le champ <strong>URL du proxy</strong></li>
+            <li>Clique <strong>Tester</strong> pour valider</li>
+            <li>Optionnel : ajoute un <strong>PROXY_TOKEN</strong> pour sécuriser l'accès</li>
+            <li><strong>Sauvegarder</strong></li>
+          </ol>
+
+          <h4>🔒 Sécurité intégrée</h4>
+          <p>Tous les proxies incluent automatiquement :</p>
+          <ul class="feature-list">
+            <li>Blocage des IPs privées (localhost, 192.168.*, 10.*, .local)</li>
+            <li>Timeout 25s, max 1 MB par réponse</li>
+            <li>Auth optionnelle par token (<code>X-Proxy-Token</code>)</li>
+            <li>Whitelist/blacklist configurables (<code>ALLOWED_HOSTS</code>, <code>BLOCKED_HOSTS</code>)</li>
+          </ul>
+
+          <p>📖 Voir <a href="https://github.com/isaytoo/grist-widget-studio-pro/tree/main/proxy" target="_blank">la doc complète du proxy</a> sur GitHub.</p>
+        </div>
+
+        <!-- SHORTCUTS -->
+        <div class="help-panel" data-help-panel="shortcuts">
+          <h3>⌨️ Raccourcis clavier</h3>
+          
+          <h4>Globaux</h4>
+          <table class="shortcuts-table">
+            <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Sauvegarder le projet dans Grist</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Lancer / rafraîchir le preview</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Fermer un modal</td></tr>
+          </table>
+
+          <h4>Éditeur Monaco</h4>
+          <table class="shortcuts-table">
+            <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Rechercher</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>Rechercher et remplacer</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Sélectionner l'occurrence suivante</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>/</kbd></td><td>Commenter / décommenter</td></tr>
+            <tr><td><kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd></td><td>Déplacer la ligne</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd></td><td>Supprimer la ligne</td></tr>
+            <tr><td><kbd>F2</kbd></td><td>Renommer le symbole</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>Forcer l'auto-complétion</td></tr>
+            <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td><td>Palette de commandes Monaco</td></tr>
+          </table>
+
+          <h4>Système (Mac)</h4>
+          <p>Sur Mac, remplace <kbd>Ctrl</kbd> par <kbd>Cmd</kbd> (⌘).</p>
+        </div>
+
+        <!-- FAQ -->
+        <div class="help-panel" data-help-panel="faq">
+          <h3>💡 FAQ - Questions fréquentes</h3>
+
+          <div class="faq-item">
+            <strong>Où sont stockés mes projets ?</strong>
+            <p>Dans les <strong>options du widget Grist</strong> (<code>grist.setOptions</code>), au sein même de ton document. Chaque widget Studio Pro installé dans Grist a son propre projet.</p>
+          </div>
+
+          <div class="faq-item">
+            <strong>Je perds mon travail en fermant Grist ?</strong>
+            <p>Non, tant que tu as cliqué sur <strong>💾 Sauvegarder</strong>. En plus, les paramètres du proxy sont aussi stockés en fallback dans <code>localStorage</code> de ton navigateur.</p>
+          </div>
+
+          <div class="faq-item">
+            <strong>Que se passe-t-il quand je clique sur Installer ?</strong>
+            <p>Le widget Studio Pro <strong>se remplace</strong> par ton widget final dans cet emplacement. Pour revenir en arrière, tu peux supprimer le widget et en réinstaller un nouveau.</p>
+            <p><em>Astuce : Exporte toujours ton projet en ZIP avant d'installer.</em></p>
+          </div>
+
+          <div class="faq-item">
+            <strong>Comment utiliser plusieurs widgets Studio Pro dans un document ?</strong>
+            <p>Ajoute simplement plusieurs widgets de type "Custom" pointant vers la même URL. Chacun aura son propre projet indépendant (options séparées).</p>
+          </div>
+
+          <div class="faq-item">
+            <strong>Puis-je collaborer avec d'autres sur un widget ?</strong>
+            <p>Oui ! Le projet étant dans le document Grist, toute personne ayant accès au doc peut voir/modifier le widget. Pour partager entre documents, utilise Export/Import ZIP.</p>
+          </div>
+
+          <div class="faq-item">
+            <strong>Comment utiliser une bibliothèque externe (ex: Chart.js) ?</strong>
+            <p>Clique sur <strong>📦 Packages</strong> → tape le nom (ex: <code>chart.js</code>) → Ajouter. La lib est automatiquement injectée dans le preview et le widget final via CDN jsDelivr.</p>
+          </div>
+
+          <div class="faq-item">
+            <strong>Mon API retourne "CORS error", que faire ?</strong>
+            <p>1. Vérifie si l'API supporte CORS nativement (header <code>Access-Control-Allow-Origin</code>).<br>
+            2. Si non, déploie ton proxy : clique sur <strong>🔌 Proxy</strong> → choisis Cloudflare Workers → suis les instructions.</p>
+          </div>
+
+          <div class="faq-item">
+            <strong>Comment sécuriser mes clés API ?</strong>
+            <p><strong>⚠️ Ne stocke jamais de clé API secrète en clair dans ton widget</strong> (elle sera visible par tous ceux qui ont accès au document).<br>
+            Solution : utilise un proxy avec <code>PROXY_TOKEN</code> qui injecte la clé côté serveur (envoie les secrets comme variables d'environnement dans Cloudflare/Vercel).</p>
+          </div>
+
+          <div class="faq-item">
+            <strong>Le preview ne se rafraîchit plus ?</strong>
+            <p>Clique sur <strong>↻</strong> dans le panneau de preview, ou utilise <kbd>Ctrl</kbd>+<kbd>Enter</kbd>. Vérifie aussi la console pour d'éventuelles erreurs JavaScript.</p>
+          </div>
+
+          <div class="faq-item">
+            <strong>Contribuer / signaler un bug ?</strong>
+            <p>Le code est open-source (Apache 2.0) sur <a href="https://github.com/isaytoo/grist-widget-studio-pro" target="_blank">GitHub</a>. Les PRs et issues sont les bienvenues !</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Monaco Editor Loader -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.47.0/min/vs/loader.js"></script>
+  
+  <!-- JSZip for export/import -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <!-- Our app -->
+  <script src="templates.js"></script>
+  <script src="grist-types.js"></script>
+  <script src="app.js"></script>
+
+  <!-- Footer -->
+  <footer class="footer-fixed">
+    <span>© 2026 Said Hamadou (isaytoo) · Grist Widget Studio Pro</span>
+    <a href="https://gristup.fr" target="_blank">gristup.fr</a>
+  </footer>
+</body>
+</html>

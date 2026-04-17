@@ -1,0 +1,11 @@
+{
+  "widgets": [
+    {
+      "widgetId": "@isaytoo/grist-widget-studio-pro",
+      "name": "Widget Studio Pro",
+      "url": "https://grist-widget-studio-pro.vercel.app/",
+      "description": "A powerful IDE to build custom Grist widgets with HTML/CSS/JS, live preview, CORS proxy, API tester, templates, and more.",
+      "requiredAccess": "full"
+    }
+  ]
+}

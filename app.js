@@ -4,6 +4,302 @@
  * Licensed under the Apache License, Version 2.0
  */
 
+// ============ I18N ============
+const i18n = {
+  fr: {
+    // Topbar
+    projectDefault: 'Mon Widget',
+    btnPreview: 'Preview',
+    btnSave: 'Sauvegarder',
+    btnInstall: 'Installer',
+    btnTemplates: 'Templates',
+    btnPackages: 'Packages',
+    btnExport: 'Export',
+    btnImport: 'Import',
+    btnProxy: 'Proxy',
+    titlePreview: 'Lancer preview (Ctrl+Enter)',
+    titleSave: 'Sauvegarder (Ctrl+S)',
+    titleInstall: 'Installer dans ce widget',
+    titleTemplates: 'Templates',
+    titlePackages: 'Packages CDN',
+    titleExport: 'Exporter en ZIP',
+    titleImport: 'Importer un ZIP',
+    titleProxy: 'Configuration du proxy CORS',
+    titleTheme: 'Changer de thème',
+    titleHelp: 'Aide',
+    statusReady: 'Prêt',
+    // Sidebar
+    explorer: 'EXPLORER',
+    apiCollections: 'API COLLECTIONS',
+    gristTables: 'GRIST TABLES',
+    newFile: 'Nouveau fichier',
+    newApi: 'Nouvelle API',
+    refreshTables: 'Rafraîchir',
+    noApi: 'Aucune API. Clique + pour en ajouter.',
+    loadingTables: 'Chargement...',
+    noTables: 'Aucune table',
+    gristUnavailable: 'Grist non disponible',
+    // Preview tabs
+    tabPreview: '👁 Preview',
+    tabApi: '🌐 API',
+    tabConsole: '🐛 Console',
+    tabNetwork: '📡 Network',
+    // Preview controls
+    deviceDesktop: '💻 Desktop',
+    deviceTablet: '📱 Tablet (768px)',
+    deviceMobile: '📱 Mobile (375px)',
+    titleReload: 'Reload (Ctrl+R)',
+    titleFullscreen: 'Plein écran',
+    // API tester
+    authNone: 'Aucune',
+    bodyNone: 'Aucun',
+    bodyJson: 'JSON',
+    bodyForm: 'Form Data',
+    bodyRaw: 'Raw Text',
+    responseEmpty: 'Envoie une requête pour voir la réponse ici...',
+    btnCopyResponse: '📋 Copier',
+    btnUseInCode: '→ Insérer dans le code',
+    // Console
+    btnClear: '🗑 Clear',
+    filterLogs: 'Logs',
+    filterWarnings: 'Warnings',
+    filterErrors: 'Errors',
+    filterInfo: 'Info',
+    networkRequests: ' requêtes',
+    // Templates modal
+    modalTemplatesTitle: '📚 Templates',
+    templatesSearch: 'Rechercher un template...',
+    // Packages modal
+    modalPackagesTitle: '📦 Packages CDN',
+    packagesDesc: 'Ajoute des bibliothèques via CDN (jsDelivr, unpkg). Elles seront automatiquement incluses dans ton widget.',
+    packageSearch: 'Nom du package (ex: chart.js, d3, leaflet)...',
+    btnAddPackage: 'Ajouter',
+    packagesInstalled: 'Installés',
+    noPackages: 'Aucun package installé',
+    // Proxy modal
+    modalProxyTitle: '🔌 Configuration du Proxy CORS',
+    proxyCorsTitle: '💡 C\'est quoi un proxy CORS\u00a0?',
+    proxyCorsDesc: 'Quand ton widget appelle une API externe (ex:\u00a0OpenWeather, GitHub…), le navigateur bloque souvent la requête pour des raisons de sécurité\u00a0: c\'est le <strong>blocage CORS</strong>. Un proxy est un petit serveur intermédiaire qui fait la requête <em>à ta place</em> et te renvoie la réponse sans blocage.',
+    proxyModeTitle: 'Comment veux-tu gérer les appels API\u00a0?',
+    proxyModeNone: '🚫 Sans proxy',
+    proxyModeNoneDesc: 'J\'appelle uniquement des APIs qui autorisent déjà mon site. Les autres retourneront une erreur "CORS".',
+    proxyModeCustom: '✨ Avec mon proxy (recommandé)',
+    proxyModeCustomDesc: 'J\'installe un petit serveur relais (gratuit, 2\u00a0min de config) pour contourner les blocages CORS.',
+    proxyUrlLabel: 'Adresse de ton proxy',
+    proxyUrlPlaceholder: 'https://mon-proxy.workers.dev',
+    btnTestProxy: 'Vérifier',
+    proxyUrlHelp: 'Colle ici l\'URL que tu as obtenue après avoir déployé ton proxy (étape ci-dessous).',
+    proxyTokenLabel: 'Mot de passe du proxy (facultatif)',
+    proxyTokenPlaceholder: 'Laisse vide si tu n\'as pas configuré de mot de passe',
+    proxyTokenHelp: 'Si tu as protégé ton proxy avec un <code>PROXY_TOKEN</code>, saisis-le ici. Sinon laisse vide.',
+    proxyDeployTitle: '🚀 Je n\'ai pas encore de proxy\u00a0: comment en créer un\u00a0?',
+    proxyDeployDesc: 'Choisis un hébergeur ci-dessous\u00a0: tous proposent un <strong>plan gratuit</strong> largement suffisant. Clique sur une vignette\u00a0: les instructions détaillées s\'affichent juste en-dessous.',
+    deployInstructionsLabel: '📖 Voir les instructions pas-à-pas',
+    btnSaveProxy: '💾 Enregistrer la configuration',
+    btnClose: 'Fermer',
+    // Help modal
+    modalHelpTitle: '❓ Aide - Widget Studio Pro',
+    helpTabIntro: '👋 Introduction',
+    helpTabInterface: '🖥 Interface',
+    helpTabWorkflow: '🚀 Premier widget',
+    helpTabGristApi: '🌐 API Grist',
+    helpTabApiTester: '📡 API Tester',
+    helpTabProxy: '🔌 Proxy CORS',
+    helpTabShortcuts: '⌨️ Raccourcis',
+    helpTabFaq: '💡 FAQ',
+    // Toasts
+    toastSaving: 'Sauvegarde...',
+    toastSaved: '💾 Projet sauvegardé dans Grist',
+    toastSaveError: 'Erreur sauvegarde : ',
+    toastLoaded: 'Projet chargé depuis Grist',
+    toastInstalled: '✅ Widget installé\u00a0! Reload la page pour l\'activer.',
+    toastInstallError: 'Erreur : ',
+    toastGristUnavailable: 'Grist non disponible',
+    toastProxyOk: '✅ Proxy opérationnel\u00a0!',
+    toastProxyError: '❌ Proxy inaccessible : ',
+    toastProxySaved: '✅ Configuration proxy sauvegardée',
+    toastExported: 'Projet exporté',
+    toastImported: 'Projet importé',
+    toastCodeAdded: 'Code ajouté dans script.js',
+    toastTemplateLoaded: 'Template chargé',
+    toastPackageAdded: 'Package ajouté : ',
+    toastPackageRemoved: 'Package supprimé',
+    toastFileExists: 'Ce fichier existe déjà',
+    toastConfigOpen: 'Configuration ouverte',
+    // Installed mode bar
+    installedMode: 'Mode widget installé',
+    btnEditIde: '✏️ Modifier (retour IDE)',
+    uninstallConfirm: 'Retourner à l\'IDE ? Le widget installé sera désactivé.',
+    // Misc
+    confirmDeleteFile: 'Supprimer ce fichier ?',
+    confirmLoadTemplate: 'Charger ce template ? Le projet actuel sera remplacé.',
+    confirmUninstall: 'Retourner à l\'IDE ? Le widget installé sera désactivé.',
+  },
+  en: {
+    // Topbar
+    projectDefault: 'My Widget',
+    btnPreview: 'Preview',
+    btnSave: 'Save',
+    btnInstall: 'Install',
+    btnTemplates: 'Templates',
+    btnPackages: 'Packages',
+    btnExport: 'Export',
+    btnImport: 'Import',
+    btnProxy: 'Proxy',
+    titlePreview: 'Run preview (Ctrl+Enter)',
+    titleSave: 'Save (Ctrl+S)',
+    titleInstall: 'Install as standalone widget',
+    titleTemplates: 'Templates',
+    titlePackages: 'CDN Packages',
+    titleExport: 'Export as ZIP',
+    titleImport: 'Import a ZIP',
+    titleProxy: 'CORS Proxy settings',
+    titleTheme: 'Toggle theme',
+    titleHelp: 'Help',
+    statusReady: 'Ready',
+    // Sidebar
+    explorer: 'EXPLORER',
+    apiCollections: 'API COLLECTIONS',
+    gristTables: 'GRIST TABLES',
+    newFile: 'New file',
+    newApi: 'New API',
+    refreshTables: 'Refresh',
+    noApi: 'No API. Click + to add one.',
+    loadingTables: 'Loading...',
+    noTables: 'No tables',
+    gristUnavailable: 'Grist not available',
+    // Preview tabs
+    tabPreview: '👁 Preview',
+    tabApi: '🌐 API',
+    tabConsole: '🐛 Console',
+    tabNetwork: '📡 Network',
+    // Preview controls
+    deviceDesktop: '💻 Desktop',
+    deviceTablet: '📱 Tablet (768px)',
+    deviceMobile: '📱 Mobile (375px)',
+    titleReload: 'Reload (Ctrl+R)',
+    titleFullscreen: 'Fullscreen',
+    // API tester
+    authNone: 'None',
+    bodyNone: 'None',
+    bodyJson: 'JSON',
+    bodyForm: 'Form Data',
+    bodyRaw: 'Raw Text',
+    responseEmpty: 'Send a request to see the response here...',
+    btnCopyResponse: '📋 Copy',
+    btnUseInCode: '→ Insert in code',
+    // Console
+    btnClear: '🗑 Clear',
+    filterLogs: 'Logs',
+    filterWarnings: 'Warnings',
+    filterErrors: 'Errors',
+    filterInfo: 'Info',
+    networkRequests: ' requests',
+    // Templates modal
+    modalTemplatesTitle: '📚 Templates',
+    templatesSearch: 'Search a template...',
+    // Packages modal
+    modalPackagesTitle: '📦 CDN Packages',
+    packagesDesc: 'Add libraries via CDN (jsDelivr, unpkg). They will be automatically included in your widget.',
+    packageSearch: 'Package name (e.g. chart.js, d3, leaflet)...',
+    btnAddPackage: 'Add',
+    packagesInstalled: 'Installed',
+    noPackages: 'No packages installed',
+    // Proxy modal
+    modalProxyTitle: '🔌 CORS Proxy Settings',
+    proxyCorsTitle: '💡 What is a CORS proxy?',
+    proxyCorsDesc: 'When your widget calls an external API (e.g. OpenWeather, GitHub…), the browser often blocks the request for security reasons: this is the <strong>CORS block</strong>. A proxy is a small relay server that makes the request <em>on your behalf</em> and returns the response without blocking.',
+    proxyModeTitle: 'How do you want to handle API calls?',
+    proxyModeNone: '🚫 Without proxy',
+    proxyModeNoneDesc: 'I only call APIs that already allow my site. Others will return a "CORS" error.',
+    proxyModeCustom: '✨ With my proxy (recommended)',
+    proxyModeCustomDesc: 'I\'ll set up a small relay server (free, 2\u00a0min setup) to bypass CORS blocks.',
+    proxyUrlLabel: 'Your proxy address',
+    proxyUrlPlaceholder: 'https://my-proxy.workers.dev',
+    btnTestProxy: 'Test',
+    proxyUrlHelp: 'Paste here the URL you got after deploying your proxy (step below).',
+    proxyTokenLabel: 'Proxy password (optional)',
+    proxyTokenPlaceholder: 'Leave empty if you have not set a password',
+    proxyTokenHelp: 'If you protected your proxy with a <code>PROXY_TOKEN</code>, enter it here. Otherwise leave empty.',
+    proxyDeployTitle: '🚀 I don\'t have a proxy yet: how to create one?',
+    proxyDeployDesc: 'Choose a hosting provider below: all offer a <strong>free plan</strong> that is more than sufficient. Click a tile: detailed instructions appear below.',
+    deployInstructionsLabel: '📖 View step-by-step instructions',
+    btnSaveProxy: '💾 Save configuration',
+    btnClose: 'Close',
+    // Help modal
+    modalHelpTitle: '❓ Help - Widget Studio Pro',
+    helpTabIntro: '👋 Introduction',
+    helpTabInterface: '🖥 Interface',
+    helpTabWorkflow: '🚀 First widget',
+    helpTabGristApi: '🌐 Grist API',
+    helpTabApiTester: '📡 API Tester',
+    helpTabProxy: '🔌 CORS Proxy',
+    helpTabShortcuts: '⌨️ Shortcuts',
+    helpTabFaq: '💡 FAQ',
+    // Toasts
+    toastSaving: 'Saving...',
+    toastSaved: '💾 Project saved to Grist',
+    toastSaveError: 'Save error: ',
+    toastLoaded: 'Project loaded from Grist',
+    toastInstalled: '✅ Widget installed! Reload the page to activate it.',
+    toastInstallError: 'Error: ',
+    toastGristUnavailable: 'Grist not available',
+    toastProxyOk: '✅ Proxy is working!',
+    toastProxyError: '❌ Proxy unreachable: ',
+    toastProxySaved: '✅ Proxy configuration saved',
+    toastExported: 'Project exported',
+    toastImported: 'Project imported',
+    toastCodeAdded: 'Code added to script.js',
+    toastTemplateLoaded: 'Template loaded',
+    toastPackageAdded: 'Package added: ',
+    toastPackageRemoved: 'Package removed',
+    toastFileExists: 'This file already exists',
+    toastConfigOpen: 'Configuration opened',
+    // Installed mode bar
+    installedMode: 'Installed widget mode',
+    btnEditIde: '✏️ Edit (back to IDE)',
+    uninstallConfirm: 'Return to IDE? The installed widget will be deactivated.',
+    // Misc
+    confirmDeleteFile: 'Delete this file?',
+    confirmLoadTemplate: 'Load this template? The current project will be replaced.',
+    confirmUninstall: 'Return to IDE? The installed widget will be deactivated.',
+  }
+};
+
+let currentLang = (navigator.language || 'fr').substring(0, 2) === 'en' ? 'en' : 'fr';
+
+function t(key) {
+  return (i18n[currentLang] && i18n[currentLang][key]) || i18n['fr'][key] || key;
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  applyI18n();
+}
+
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const val = t(key);
+    if (val) el.innerHTML = val;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    const val = t(key);
+    if (val) el.placeholder = val;
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    const val = t(key);
+    if (val) el.title = val;
+  });
+  // Update lang buttons
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === currentLang);
+  });
+}
+
 // ============ STATE ============
 const state = {
   project: {
@@ -60,7 +356,7 @@ try {
   grist.ready({
     requiredAccess: 'full',
     onEditOptions: () => {
-      showToast('Configuration ouverte', 'info');
+      showToast(t('toastConfigOpen'), 'info');
     }
   });
 
@@ -76,7 +372,7 @@ try {
     if (options && options._project) {
       try {
         loadProject(JSON.parse(options._project));
-        showToast('Projet chargé depuis Grist', 'success');
+        showToast(t('toastLoaded'), 'success');
       } catch (e) {
         console.error('Load error:', e);
       }
@@ -166,6 +462,7 @@ require(['vs/editor/editor.main'], function () {
   state.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runPreview(true));
 
   // Initial render
+  applyI18n();
   renderFileTree();
   renderTabs();
   renderTemplates();
@@ -231,7 +528,7 @@ function addFile() {
   const name = prompt('Nom du fichier (ex: utils.js, styles.css):');
   if (!name) return;
   if (state.project.files[name]) {
-    showToast('Ce fichier existe déjà', 'warning');
+    showToast(t('toastFileExists'), 'warning');
     return;
   }
   state.project.files[name] = '';
@@ -246,7 +543,7 @@ function deleteFile(filename) {
     showToast('Les fichiers principaux ne peuvent pas être supprimés', 'warning');
     return;
   }
-  if (!confirm(`Supprimer ${filename} ?`)) return;
+  if (!confirm(t('confirmDeleteFile'))) return;
   delete state.project.files[filename];
   if (state.models[filename]) {
     state.models[filename].dispose();
@@ -371,7 +668,7 @@ ${html}
   iframe.src = url;
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 
-  if (showToastMsg) showToast('Preview lancé', 'success');
+  if (showToastMsg) showToast(t('btnPreview'), 'success');
   setStatus('ok', 'Prévisualisation');
 }
 
@@ -680,7 +977,7 @@ function renderTemplates() {
 function loadTemplate(id) {
   const tpl = window.WIDGET_TEMPLATES.find(t => t.id === id);
   if (!tpl) return;
-  if (!confirm(`Charger le template "${tpl.name}" ? Le projet actuel sera remplacé.`)) return;
+  if (!confirm(t('confirmLoadTemplate'))) return;
 
   // Dispose old models
   Object.values(state.models).forEach(m => m.dispose());
@@ -717,7 +1014,7 @@ function loadTemplate(id) {
   renderPackages();
   runPreview();
   closeModal('modalTemplates');
-  showToast(`Template "${tpl.name}" chargé`, 'success');
+  showToast(t('toastTemplateLoaded'), 'success');
 }
 
 // ============ PACKAGES ============
@@ -756,7 +1053,7 @@ function addPackage(pkg) {
   } catch (e) { /* invalid config */ }
   renderPackages();
   runPreview();
-  showToast(`Package ${pkg} ajouté`, 'success');
+  showToast(t('toastPackageAdded') + pkg, 'success');
 }
 
 function removePackage(pkg) {
@@ -780,7 +1077,7 @@ async function saveProject() {
     downloadJson();
     return;
   }
-  setStatus('saving', 'Sauvegarde...');
+  setStatus('saving', t('toastSaving'));
   try {
     const name = document.getElementById('projectName').textContent.trim();
     state.project.name = name;
@@ -791,7 +1088,7 @@ async function saveProject() {
     state.dirtyFiles.clear();
     renderTabs();
     setStatus('ok', 'Sauvegardé');
-    showToast('Projet sauvegardé dans Grist', 'success');
+    showToast(t('toastSaved'), 'success');
   } catch (e) {
     setStatus('error', 'Erreur');
     showToast('Erreur : ' + e.message, 'error');
@@ -841,8 +1138,8 @@ function renderInstalledWidget(html, js) {
   // Remplace toute l'interface par une iframe contenant le widget final
   document.body.innerHTML = `
     <div id="installed-bar" style="position:fixed;top:0;left:0;right:0;height:32px;background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:9999;font-family:sans-serif;font-size:12px;color:#94a3b8;">
-      <span>⚡ Widget Studio Pro — <strong style="color:#f1f5f9;">Mode widget installé</strong></span>
-      <button onclick="uninstallWidget()" style="background:#3b82f6;color:white;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px;">✏️ Modifier (retour IDE)</button>
+      <span>⚡ Widget Studio Pro — <strong style="color:#f1f5f9;">${t('installedMode')}</strong></span>
+      <button onclick="uninstallWidget()" style="background:#3b82f6;color:white;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px;">${t('btnEditIde')}</button>
     </div>
     <iframe id="installed-frame" style="position:fixed;top:32px;left:0;right:0;bottom:0;width:100%;height:calc(100% - 32px);border:none;"></iframe>
   `;
@@ -856,7 +1153,7 @@ function renderInstalledWidget(html, js) {
 }
 
 async function uninstallWidget() {
-  if (!confirm('Retourner à l\'IDE ? Le widget installé sera désactivé.')) return;
+  if (!confirm(t('uninstallConfirm'))) return;
   try {
     await grist.setOptions({ _installed: false });
     location.reload();
@@ -868,7 +1165,7 @@ async function uninstallWidget() {
 // ============ INSTALL WIDGET ============
 async function installWidget() {
   if (!state.gristReady) {
-    showToast('Grist non disponible', 'error');
+    showToast(t('toastGristUnavailable'), 'error');
     return;
   }
   try {
@@ -888,9 +1185,9 @@ async function installWidget() {
       _html: fullHtml,
       _js: js
     });
-    showToast('✅ Widget installé ! Reload la page pour l\'activer.', 'success');
+    showToast(t('toastInstalled'), 'success');
   } catch (e) {
-    showToast('Erreur : ' + e.message, 'error');
+    showToast(t('toastInstallError') + e.message, 'error');
   }
 }
 

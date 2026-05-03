@@ -25,41 +25,45 @@
       <div class="project-name" id="projectName" contenteditable="true">Mon Widget</div>
     </div>
     <div class="topbar-center">
-      <button class="btn-toolbar" id="btnRun" title="Lancer preview (Ctrl+Enter)">
-        <span class="icon">▶</span> Preview
+      <button class="btn-toolbar" id="btnRun" data-i18n-title="titlePreview" title="Lancer preview (Ctrl+Enter)">
+        <span class="icon">▶</span> <span data-i18n="btnPreview">Preview</span>
       </button>
-      <button class="btn-toolbar" id="btnSave" title="Sauvegarder (Ctrl+S)">
-        <span class="icon">💾</span> Sauvegarder
+      <button class="btn-toolbar" id="btnSave" data-i18n-title="titleSave" title="Sauvegarder (Ctrl+S)">
+        <span class="icon">💾</span> <span data-i18n="btnSave">Sauvegarder</span>
       </button>
-      <button class="btn-toolbar" id="btnInstall" title="Installer dans ce widget">
-        <span class="icon">📦</span> Installer
-      </button>
-      <span class="separator-v"></span>
-      <button class="btn-toolbar" id="btnTemplates" title="Templates">
-        <span class="icon">📚</span> Templates
-      </button>
-      <button class="btn-toolbar" id="btnPackages" title="Packages CDN">
-        <span class="icon">📦</span> Packages
-      </button>
-      <button class="btn-toolbar" id="btnExport" title="Exporter en ZIP">
-        <span class="icon">⬇</span> Export
-      </button>
-      <button class="btn-toolbar" id="btnImport" title="Importer un ZIP">
-        <span class="icon">⬆</span> Import
+      <button class="btn-toolbar" id="btnInstall" data-i18n-title="titleInstall" title="Installer dans ce widget">
+        <span class="icon">📦</span> <span data-i18n="btnInstall">Installer</span>
       </button>
       <span class="separator-v"></span>
-      <button class="btn-toolbar" id="btnProxySettings" title="Configuration du proxy CORS">
-        <span class="icon">🔌</span> Proxy
+      <button class="btn-toolbar" id="btnTemplates" data-i18n-title="titleTemplates" title="Templates">
+        <span class="icon">📚</span> <span data-i18n="btnTemplates">Templates</span>
+      </button>
+      <button class="btn-toolbar" id="btnPackages" data-i18n-title="titlePackages" title="Packages CDN">
+        <span class="icon">📦</span> <span data-i18n="btnPackages">Packages</span>
+      </button>
+      <button class="btn-toolbar" id="btnExport" data-i18n-title="titleExport" title="Exporter en ZIP">
+        <span class="icon">⬇</span> <span data-i18n="btnExport">Export</span>
+      </button>
+      <button class="btn-toolbar" id="btnImport" data-i18n-title="titleImport" title="Importer un ZIP">
+        <span class="icon">⬆</span> <span data-i18n="btnImport">Import</span>
+      </button>
+      <span class="separator-v"></span>
+      <button class="btn-toolbar" id="btnProxySettings" data-i18n-title="titleProxy" title="Configuration du proxy CORS">
+        <span class="icon">🔌</span> <span data-i18n="btnProxy">Proxy</span>
       </button>
     </div>
     <div class="topbar-right">
-      <button class="btn-icon" id="btnTheme" title="Changer de thème">
+      <div class="lang-switcher">
+        <button class="lang-btn active" data-lang="fr" onclick="setLang('fr')">FR</button>
+        <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+      </div>
+      <button class="btn-icon" id="btnTheme" data-i18n-title="titleTheme" title="Changer de thème">
         <span id="themeIcon">☀️</span>
       </button>
-      <button class="btn-icon" id="btnHelp" title="Aide">?</button>
+      <button class="btn-icon" id="btnHelp" data-i18n-title="titleHelp" title="Aide">?</button>
       <span class="status-indicator" id="statusIndicator">
         <span class="dot"></span>
-        <span id="statusText">Prêt</span>
+        <span id="statusText" data-i18n="statusReady">Prêt</span>
       </span>
     </div>
   </header>
@@ -70,8 +74,8 @@
     <aside class="sidebar-left" id="sidebarLeft">
       <div class="sidebar-section">
         <div class="sidebar-header">
-          <span>EXPLORER</span>
-          <button class="btn-tiny" id="btnAddFile" title="Nouveau fichier">+</button>
+          <span data-i18n="explorer">EXPLORER</span>
+          <button class="btn-tiny" id="btnAddFile" data-i18n-title="newFile" title="Nouveau fichier">+</button>
         </div>
         <div class="file-tree" id="fileTree">
           <!-- Files dynamically added -->
@@ -79,20 +83,20 @@
       </div>
       <div class="sidebar-section">
         <div class="sidebar-header">
-          <span>API COLLECTIONS</span>
-          <button class="btn-tiny" id="btnAddApi" title="Nouvelle API">+</button>
+          <span data-i18n="apiCollections">API COLLECTIONS</span>
+          <button class="btn-tiny" id="btnAddApi" data-i18n-title="newApi" title="Nouvelle API">+</button>
         </div>
         <div class="api-list" id="apiList">
-          <div class="empty-state">Aucune API. Clique + pour en ajouter.</div>
+          <div class="empty-state" data-i18n="noApi">Aucune API. Clique + pour en ajouter.</div>
         </div>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-header">
-          <span>GRIST TABLES</span>
-          <button class="btn-tiny" id="btnRefreshTables" title="Rafraîchir">↻</button>
+          <span data-i18n="gristTables">GRIST TABLES</span>
+          <button class="btn-tiny" id="btnRefreshTables" data-i18n-title="refreshTables" title="Rafraîchir">↻</button>
         </div>
         <div class="tables-list" id="tablesList">
-          <div class="empty-state">Chargement...</div>
+          <div class="empty-state" data-i18n="loadingTables">Chargement...</div>
         </div>
       </div>
     </aside>
@@ -115,10 +119,10 @@
     <aside class="sidebar-right" id="sidebarRight">
       <div class="preview-header">
         <div class="preview-tabs">
-          <button class="preview-tab active" data-tab="preview">👁 Preview</button>
-          <button class="preview-tab" data-tab="api">🌐 API</button>
-          <button class="preview-tab" data-tab="console">🐛 Console</button>
-          <button class="preview-tab" data-tab="network">📡 Network</button>
+          <button class="preview-tab active" data-tab="preview" data-i18n="tabPreview">👁 Preview</button>
+          <button class="preview-tab" data-tab="api" data-i18n="tabApi">🌐 API</button>
+          <button class="preview-tab" data-tab="console" data-i18n="tabConsole">🐛 Console</button>
+          <button class="preview-tab" data-tab="network" data-i18n="tabNetwork">📡 Network</button>
         </div>
         <div class="preview-controls">
           <select id="deviceSelect" class="select-small">
@@ -127,7 +131,7 @@
             <option value="mobile">📱 Mobile (375px)</option>
           </select>
           <button class="btn-icon-small" id="btnReload" title="Reload (Ctrl+R)">↻</button>
-          <button class="btn-icon-small" id="btnFullscreen" title="Plein écran">⛶</button>
+          <button class="btn-icon-small" id="btnFullscreen" data-i18n-title="titleFullscreen" title="Plein écran">⛶</button>
         </div>
       </div>
       
@@ -195,10 +199,10 @@
               <span id="responseStatus" class="response-status">—</span>
               <span id="responseTime" class="response-time"></span>
               <span id="responseSize" class="response-size"></span>
-              <button class="btn-tiny" id="btnCopyResponse" title="Copier la réponse">📋 Copier</button>
-              <button class="btn-tiny" id="btnUseInCode" title="Insérer un snippet fetch() dans script.js">→ Insérer dans le code</button>
+              <button class="btn-tiny" id="btnCopyResponse" data-i18n="btnCopyResponse" title="Copier la réponse">📋 Copier</button>
+              <button class="btn-tiny" id="btnUseInCode" data-i18n="btnUseInCode" title="Insérer un snippet fetch() dans script.js">→ Insérer dans le code</button>
             </div>
-            <pre id="responseBody" class="response-body">Envoie une requête pour voir la réponse ici...</pre>
+            <pre id="responseBody" class="response-body" data-i18n="responseEmpty">Envoie une requête pour voir la réponse ici...</pre>
           </div>
         </div>
       </div>
@@ -232,12 +236,12 @@
     <div class="modal-backdrop"></div>
     <div class="modal-content modal-wide">
       <div class="modal-header">
-        <h2>📚 Templates</h2>
+        <h2 data-i18n="modalTemplatesTitle">📚 Templates</h2>
         <button class="modal-close" data-close="modalTemplates">✕</button>
       </div>
       <div class="modal-body">
         <div class="templates-filter">
-          <input type="search" id="templatesSearch" placeholder="Rechercher un template...">
+          <input type="search" id="templatesSearch" data-i18n-placeholder="templatesSearch" placeholder="Rechercher un template...">
           <div class="templates-tags" id="templatesTags"></div>
         </div>
         <div class="templates-grid" id="templatesGrid"></div>
@@ -250,14 +254,14 @@
     <div class="modal-backdrop"></div>
     <div class="modal-content">
       <div class="modal-header">
-        <h2>📦 Packages CDN</h2>
+        <h2 data-i18n="modalPackagesTitle">📦 Packages CDN</h2>
         <button class="modal-close" data-close="modalPackages">✕</button>
       </div>
       <div class="modal-body">
-        <p class="modal-description">Ajoute des bibliothèques via CDN (jsDelivr, unpkg). Elles seront automatiquement incluses dans ton widget.</p>
+        <p class="modal-description" data-i18n="packagesDesc">Ajoute des bibliothèques via CDN (jsDelivr, unpkg). Elles seront automatiquement incluses dans ton widget.</p>
         <div class="package-search">
-          <input type="text" id="packageSearch" placeholder="Nom du package (ex: chart.js, d3, leaflet)...">
-          <button class="btn-primary" id="btnAddPackage">Ajouter</button>
+          <input type="text" id="packageSearch" data-i18n-placeholder="packageSearch" placeholder="Nom du package (ex: chart.js, d3, leaflet)...">
+          <button class="btn-primary" id="btnAddPackage" data-i18n="btnAddPackage">Ajouter</button>
         </div>
         <div class="packages-suggestions">
           <span class="pkg-tag" data-pkg="chart.js">Chart.js</span>
@@ -272,7 +276,7 @@
           <span class="pkg-tag" data-pkg="@grapecity/spread-sheets">SpreadJS</span>
         </div>
         <div class="packages-installed">
-          <h3>Installés</h3>
+          <h3 data-i18n="packagesInstalled">Installés</h3>
           <div id="packagesList"></div>
         </div>
       </div>
@@ -284,7 +288,7 @@
     <div class="modal-backdrop"></div>
     <div class="modal-content modal-wide">
       <div class="modal-header">
-        <h2>🔌 Configuration du Proxy CORS</h2>
+        <h2 data-i18n="modalProxyTitle">🔌 Configuration du Proxy CORS</h2>
         <button class="modal-close" data-close="modalProxy">✕</button>
       </div>
       <div class="modal-body">
@@ -385,8 +389,8 @@
         </details>
 
         <div class="modal-actions">
-          <button class="btn-primary" id="btnSaveProxy">💾 Enregistrer la configuration</button>
-          <button class="btn-secondary" data-close="modalProxy">Fermer</button>
+          <button class="btn-primary" id="btnSaveProxy" data-i18n="btnSaveProxy">💾 Enregistrer la configuration</button>
+          <button class="btn-secondary" data-close="modalProxy" data-i18n="btnClose">Fermer</button>
         </div>
       </div>
     </div>
@@ -397,20 +401,20 @@
     <div class="modal-backdrop"></div>
     <div class="modal-content modal-wide">
       <div class="modal-header">
-        <h2>❓ Aide - Widget Studio Pro</h2>
+        <h2 data-i18n="modalHelpTitle">❓ Aide - Widget Studio Pro</h2>
         <button class="modal-close" data-close="modalHelp">✕</button>
       </div>
       <div class="modal-body">
         <!-- Help Navigation Tabs -->
         <div class="help-tabs">
-          <button class="help-tab active" data-help-tab="intro">👋 Introduction</button>
-          <button class="help-tab" data-help-tab="interface">🖥 Interface</button>
-          <button class="help-tab" data-help-tab="workflow">🚀 Premier widget</button>
-          <button class="help-tab" data-help-tab="grist-api">🌐 API Grist</button>
-          <button class="help-tab" data-help-tab="api-tester">📡 API Tester</button>
-          <button class="help-tab" data-help-tab="proxy">🔌 Proxy CORS</button>
-          <button class="help-tab" data-help-tab="shortcuts">⌨️ Raccourcis</button>
-          <button class="help-tab" data-help-tab="faq">💡 FAQ</button>
+          <button class="help-tab active" data-help-tab="intro" data-i18n="helpTabIntro">👋 Introduction</button>
+          <button class="help-tab" data-help-tab="interface" data-i18n="helpTabInterface">🖥 Interface</button>
+          <button class="help-tab" data-help-tab="workflow" data-i18n="helpTabWorkflow">🚀 Premier widget</button>
+          <button class="help-tab" data-help-tab="grist-api" data-i18n="helpTabGristApi">🌐 API Grist</button>
+          <button class="help-tab" data-help-tab="api-tester" data-i18n="helpTabApiTester">📡 API Tester</button>
+          <button class="help-tab" data-help-tab="proxy" data-i18n="helpTabProxy">🔌 Proxy CORS</button>
+          <button class="help-tab" data-help-tab="shortcuts" data-i18n="helpTabShortcuts">⌨️ Raccourcis</button>
+          <button class="help-tab" data-help-tab="faq" data-i18n="helpTabFaq">💡 FAQ</button>
         </div>
 
         <!-- INTRO -->

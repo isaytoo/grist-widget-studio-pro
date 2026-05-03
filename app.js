@@ -66,6 +66,13 @@ try {
 
   grist.onOptions(async (options) => {
     state.gristReady = true;
+
+    // Mode widget installé : afficher le rendu final au lieu de l'IDE
+    if (options && options._installed && options._html) {
+      renderInstalledWidget(options._html, options._js || '');
+      return;
+    }
+
     if (options && options._project) {
       try {
         loadProject(JSON.parse(options._project));
@@ -827,6 +834,35 @@ function downloadJson() {
   a.download = (state.project.name || 'widget') + '.json';
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ============ INSTALLED MODE RENDERER ============
+function renderInstalledWidget(html, js) {
+  // Remplace toute l'interface par une iframe contenant le widget final
+  document.body.innerHTML = `
+    <div id="installed-bar" style="position:fixed;top:0;left:0;right:0;height:32px;background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:9999;font-family:sans-serif;font-size:12px;color:#94a3b8;">
+      <span>⚡ Widget Studio Pro — <strong style="color:#f1f5f9;">Mode widget installé</strong></span>
+      <button onclick="uninstallWidget()" style="background:#3b82f6;color:white;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px;">✏️ Modifier (retour IDE)</button>
+    </div>
+    <iframe id="installed-frame" style="position:fixed;top:32px;left:0;right:0;bottom:0;width:100%;height:calc(100% - 32px);border:none;"></iframe>
+  `;
+  const iframe = document.getElementById('installed-frame');
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <script src="https://docs.getgrist.com/grist-plugin-api.js"><\/script>
+    </head><body>${html}<script>${js}<\/script></body></html>`);
+  doc.close();
+}
+
+async function uninstallWidget() {
+  if (!confirm('Retourner à l\'IDE ? Le widget installé sera désactivé.')) return;
+  try {
+    await grist.setOptions({ _installed: false });
+    location.reload();
+  } catch (e) {
+    location.reload();
+  }
 }
 
 // ============ INSTALL WIDGET ============

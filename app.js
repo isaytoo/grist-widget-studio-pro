@@ -602,48 +602,24 @@ function markDirty(filename) {
 }
 
 // ============ PREVIEW ============
-function scheduleHotReload() {
-  if (state.hotReloadTimer) clearTimeout(state.hotReloadTimer);
-  state.hotReloadTimer = setTimeout(() => runPreview(), 600);
-}
 
-function runPreview(showToastMsg = false) {
-  const iframe = document.getElementById('previewFrame');
-  const html = state.project.files['index.html'] || '';
-  const css = state.project.files['style.css'] || '';
-  const js = state.project.files['script.js'] || '';
-  
-  // Other JS/CSS files
-  let extraJs = '';
-  let extraCss = '';
-  Object.keys(state.project.files).forEach(f => {
-    if (['index.html', 'script.js', 'style.css', 'config.json'].includes(f)) return;
-    if (f.endsWith('.js')) extraJs += `\n// ===== ${f} =====\n` + state.project.files[f];
-    if (f.endsWith('.css')) extraCss += `\n/* ===== ${f} ===== */\n` + state.project.files[f];
-  });
-
-  // Packages as CDN links
-  const packages = state.project.packages || [];
-  const packageTags = packages.map(p => {
+// Build a full HTML page from a project's files, handling both the case where
+// index.html is a fragment (just body content) and a complete document (with
+// <html>/<head>/<body>/<!doctype>). User-defined <head> content (including
+// inline <style> blocks, <link>, <meta>) is preserved instead of being injected
+// into the wrapper's body.
+function composeFullPage({ html, css, js, packages, withConsoleProbe }) {
+  const packageTags = (packages || []).map(p => {
     const url = `https://cdn.jsdelivr.net/npm/${p}`;
     if (p.endsWith('.css') || p.includes('leaflet')) {
-      return `<link rel="stylesheet" href="${url}"><script src="${url}"></script>`;
+      return `<link rel="stylesheet" href="${url}"><script src="${url}"></` + `script>`;
     }
-    return `<script src="${url}"></script>`;
+    return `<script src="${url}"></` + `script>`;
   }).join('\n');
 
-  const fullHtml = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<script src="https://docs.getgrist.com/grist-plugin-api.js"></` + `script>
-${packageTags}
-<style>${css}${extraCss}</style>
-</head>
-<body>
-${html}
-<script>
-// Intercept console
+  const gristApi = `<script src="https://docs.getgrist.com/grist-plugin-api.js"></` + `script>`;
+
+  const consoleScript = withConsoleProbe ? `<script>
 (function() {
   const orig = { log: console.log, warn: console.warn, error: console.error, info: console.info };
   ['log', 'warn', 'error', 'info'].forEach(level => {
@@ -658,10 +634,73 @@ ${html}
     parent.postMessage({ type: '__studio_console', level: 'error', args: [e.message + ' (' + (e.filename||'inline') + ':' + e.lineno + ')'] }, '*');
   });
 })();
-</` + `script>
-<script>${js}${extraJs}</` + `script>
+</` + `script>` : '';
+
+  const userScript = js ? `<script>${js}</` + `script>` : '';
+  const userStyle = css ? `<style>${css}</style>` : '';
+
+  const isFullDoc = /<html[\s>]/i.test(html) || /<head[\s>]/i.test(html) || /<!doctype/i.test(html);
+
+  if (isFullDoc) {
+    let out = html;
+    const headInjection = `\n${gristApi}\n${packageTags}\n${userStyle}\n`;
+    if (/<\/head>/i.test(out)) {
+      out = out.replace(/<\/head>/i, headInjection + '</head>');
+    } else if (/<head[^>]*>/i.test(out)) {
+      out = out.replace(/<head([^>]*)>/i, '<head$1>' + headInjection);
+    } else if (/<html[^>]*>/i.test(out)) {
+      out = out.replace(/<html([^>]*)>/i, '<html$1>\n<head>' + headInjection + '</head>');
+    } else {
+      out = `<head>${headInjection}</head>\n` + out;
+    }
+    const bodyInjection = `\n${consoleScript}\n${userScript}\n`;
+    if (/<\/body>/i.test(out)) {
+      out = out.replace(/<\/body>/i, bodyInjection + '</body>');
+    } else {
+      out += bodyInjection;
+    }
+    return out;
+  }
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+${gristApi}
+${packageTags}
+${userStyle}
+</head>
+<body>
+${html}
+${consoleScript}
+${userScript}
 </body>
 </html>`;
+}
+
+function scheduleHotReload() {
+  if (state.hotReloadTimer) clearTimeout(state.hotReloadTimer);
+  state.hotReloadTimer = setTimeout(() => runPreview(), 600);
+}
+
+function runPreview(showToastMsg = false) {
+  const iframe = document.getElementById('previewFrame');
+  const html = state.project.files['index.html'] || '';
+  let css = state.project.files['style.css'] || '';
+  let js = state.project.files['script.js'] || '';
+
+  // Append any extra .js / .css files that aren't the canonical 4 entries
+  Object.keys(state.project.files).forEach(f => {
+    if (['index.html', 'script.js', 'style.css', 'config.json'].includes(f)) return;
+    if (f.endsWith('.js')) js += `\n// ===== ${f} =====\n` + state.project.files[f];
+    if (f.endsWith('.css')) css += `\n/* ===== ${f} ===== */\n` + state.project.files[f];
+  });
+
+  const fullHtml = composeFullPage({
+    html, css, js,
+    packages: state.project.packages || [],
+    withConsoleProbe: true
+  });
 
   const blob = new Blob([fullHtml], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
@@ -1146,9 +1185,17 @@ function renderInstalledWidget(html, js) {
   const iframe = document.getElementById('installed-frame');
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
-  doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  // If `html` is already a full document (new install format), write it as-is.
+  // Older installs stored an HTML body fragment with `js` separate, so we keep
+  // the legacy wrapper for backward compatibility.
+  const isFullDoc = /<html[\s>]/i.test(html) || /<head[\s>]/i.test(html) || /<!doctype/i.test(html);
+  if (isFullDoc) {
+    doc.write(html);
+  } else {
+    doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
     <script src="https://docs.getgrist.com/grist-plugin-api.js"><\/script>
     </head><body>${html}<script>${js}<\/script></body></html>`);
+  }
   doc.close();
 }
 
@@ -1170,20 +1217,29 @@ async function installWidget() {
   }
   try {
     const html = state.project.files['index.html'] || '';
-    const css = state.project.files['style.css'] || '';
-    const js = state.project.files['script.js'] || '';
-    
-    // Build complete HTML and JS with packages injected
-    const packages = state.project.packages || [];
-    const packageTags = packages.map(p => `<script src="https://cdn.jsdelivr.net/npm/${p}"></` + `script>`).join('\n');
-    
-    const fullHtml = `${packageTags}\n<style>${css}</style>\n${html}`;
-    
+    let css = state.project.files['style.css'] || '';
+    let js = state.project.files['script.js'] || '';
+
+    Object.keys(state.project.files).forEach(f => {
+      if (['index.html', 'script.js', 'style.css', 'config.json'].includes(f)) return;
+      if (f.endsWith('.js')) js += `\n// ===== ${f} =====\n` + state.project.files[f];
+      if (f.endsWith('.css')) css += `\n/* ===== ${f} ===== */\n` + state.project.files[f];
+    });
+
+    // Compose the final standalone document so the installed runtime can render
+    // it with a single `doc.write(_html)`. We embed the script too, so `_js`
+    // becomes empty (kept in the schema for legacy installs only).
+    const fullHtml = composeFullPage({
+      html, css, js,
+      packages: state.project.packages || [],
+      withConsoleProbe: false
+    });
+
     await grist.setOptions({
       _project: JSON.stringify(state.project),
       _installed: true,
       _html: fullHtml,
-      _js: js
+      _js: ''
     });
     showToast(t('toastInstalled'), 'success');
   } catch (e) {

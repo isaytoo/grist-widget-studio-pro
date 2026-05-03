@@ -3,9 +3,26 @@
   "version": "1.0.0",
   "description": "A powerful IDE to build custom Grist widgets with HTML/CSS/JS, live preview, CORS proxy, API tester, templates, and more.",
   "main": "index.html",
+  "homePage": "https://github.com/isaytoo/grist-widget-studio-pro",
   "scripts": {
     "start": "npx serve .",
     "deploy": "vercel --prod"
+  },
+  "grist": {
+    "name": "Widget Studio Pro",
+    "url": "https://gristlabs.github.io/grist-widget/widget-studio-pro/",
+    "widgetId": "@isaytoo/grist-widget-studio-pro",
+    "published": true,
+    "accessLevel": "full",
+    "renderAfterReady": true,
+    "description": "A powerful in-browser IDE to build custom Grist widgets: Monaco editor (HTML/CSS/JS/JSON), live preview, API tester, CORS proxy, template library, dark mode.",
+    "isGristLabsMaintained": false,
+    "authors": [
+      {
+        "name": "Said Hamadou",
+        "url": "https://github.com/isaytoo"
+      }
+    ]
   },
   "keywords": [
     "grist",

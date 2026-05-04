@@ -1562,6 +1562,117 @@ async function deleteGristTable(tableName) {
 }
 
 // ============ EXPORT/IMPORT ZIP ============
+
+function showExportMenu(anchorEl) {
+  document.getElementById('exportDropdown')?.remove();
+  const menu = document.createElement('div');
+  menu.id = 'exportDropdown';
+  menu.style.cssText = 'position:fixed;z-index:9999;background:var(--bg-secondary,#1e293b);border:1px solid var(--border,#334155);border-radius:8px;padding:4px;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.4);';
+  const rect = anchorEl.getBoundingClientRect();
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.left = rect.left + 'px';
+  const items = [
+    { icon: '📦', label: lang === 'fr' ? 'Archive Studio (.zip)' : 'Studio Archive (.zip)',
+      sub:   lang === 'fr' ? 'Réimporter dans Studio Pro' : 'Re-import into Studio Pro',
+      fn: exportZip },
+    { icon: '🚀', label: lang === 'fr' ? 'Widget déployable (.zip)' : 'Deployable Widget (.zip)',
+      sub:   lang === 'fr' ? 'Héberger & partager avec tous' : 'Host & share with everyone',
+      fn: exportGristWidget }
+  ];
+  items.forEach(({ icon, label, sub, fn }) => {
+    const btn = document.createElement('button');
+    btn.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;width:100%;padding:8px 12px;background:none;border:none;border-radius:6px;cursor:pointer;color:var(--text-primary,#f1f5f9);text-align:left;';
+    btn.onmouseover = () => btn.style.background = 'var(--hover-bg,#334155)';
+    btn.onmouseleave = () => btn.style.background = 'none';
+    btn.innerHTML = `<span style="font-size:13px;font-weight:600">${icon} ${label}</span><span style="font-size:11px;color:#94a3b8;margin-top:2px">${sub}</span>`;
+    btn.onclick = () => { menu.remove(); fn(); };
+    menu.appendChild(btn);
+  });
+  document.body.appendChild(menu);
+  const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('mousedown', close); } };
+  setTimeout(() => document.addEventListener('mousedown', close), 0);
+}
+
+async function exportGristWidget() {
+  if (typeof JSZip === 'undefined') { showToast('JSZip non chargé', 'error'); return; }
+  const name = state.project.name || 'mon-widget';
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+  // Build deployable index.html (real grist-plugin-api, no proxy)
+  const html = state.project.files['index.html'] || '';
+  let css = state.project.files['style.css'] || '';
+  let js  = state.project.files['script.js']  || '';
+  Object.keys(state.project.files).forEach(f => {
+    if (['index.html','script.js','style.css','config.json'].includes(f)) return;
+    if (f.endsWith('.js'))  js  += `\n// ===== ${f} =====\n` + state.project.files[f];
+    if (f.endsWith('.css')) css += `\n/* ===== ${f} ===== */\n` + state.project.files[f];
+  });
+  const compiledHtml = composeFullPage({ html, css, js, packages: state.project.packages || [], withConsoleProbe: false, withGristProxy: false });
+
+  // manifest.json (Grist custom-widget format)
+  const manifest = JSON.stringify({
+    name,
+    description: `Widget créé avec Grist Widget Studio Pro`,
+    url: `https://VOTRE-URL-DE-DEPLOIEMENT/`,
+    accessLevel: 'full document',
+    published: true,
+    createdWith: 'Grist Widget Studio Pro',
+    exportedAt: new Date().toISOString()
+  }, null, 2);
+
+  // README.md
+  const readme = [
+    `# ${name}`,
+    '',
+    '> Widget créé avec [Grist Widget Studio Pro](https://grist-widget-studio-pro.vercel.app)',
+    '',
+    '## Déploiement rapide',
+    '',
+    '### Option 1 — Vercel (recommandé, gratuit)',
+    '1. Créez un compte sur [vercel.com](https://vercel.com)',
+    '2. Installez la CLI : `npm i -g vercel`',
+    '3. Dans ce dossier : `vercel --prod`',
+    '4. Copiez l\'URL obtenue (ex: `https://mon-widget.vercel.app`)',
+    '',
+    '### Option 2 — Netlify (drag & drop)',
+    '1. Allez sur [app.netlify.com/drop](https://app.netlify.com/drop)',
+    '2. Glissez ce dossier → URL instantanée',
+    '',
+    '### Option 3 — GitHub Pages',
+    '1. Créez un repo GitHub et poussez ces fichiers',
+    '2. Settings → Pages → Deploy from main branch',
+    '3. URL : `https://VOTRE-PSEUDO.github.io/REPO/`',
+    '',
+    '## Ajout dans Grist',
+    '1. Ouvrez votre document Grist',
+    '2. Ajouter un widget personnalisé',
+    '3. Collez votre URL de déploiement',
+    '4. Accordez l\'accès **Lecture complète** ou **Accès complet**',
+    '',
+    '## Fichiers',
+    '| Fichier | Rôle |',
+    '|---------|------|',
+    '| `index.html` | Page compilée prête à déployer |',
+    '| `manifest.json` | Métadonnées widget Grist |',
+    '| `_studio.json` | Archive projet Studio Pro |',
+  ].join('\n');
+
+  const zip = new JSZip();
+  zip.file('index.html', compiledHtml);
+  zip.file('manifest.json', manifest);
+  zip.file('README.md', readme);
+  zip.file('_studio.json', JSON.stringify({ name, files: state.project.files, packages: state.project.packages, apis: state.project.apis, createdBy: 'Grist Widget Studio Pro', exportedAt: new Date().toISOString() }, null, 2));
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = slug + '-grist-widget.zip';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(lang === 'fr' ? '🚀 Widget déployable exporté !' : '🚀 Deployable widget exported!', 'success');
+}
+
 async function exportZip() {
   if (typeof JSZip === 'undefined') {
     showToast('JSZip non chargé', 'error');
@@ -1930,7 +2041,7 @@ function setupEventListeners() {
   document.getElementById('btnInstall').addEventListener('click', installWidget);
   document.getElementById('btnTemplates').addEventListener('click', () => openModal('modalTemplates'));
   document.getElementById('btnPackages').addEventListener('click', () => { renderPackages(); openModal('modalPackages'); });
-  document.getElementById('btnExport').addEventListener('click', exportZip);
+  document.getElementById('btnExport').addEventListener('click', (e) => showExportMenu(e.currentTarget));
   document.getElementById('btnImport').addEventListener('click', importZip);
   document.getElementById('btnHelp').addEventListener('click', () => openModal('modalHelp'));
   document.getElementById('btnTheme').addEventListener('click', toggleTheme);

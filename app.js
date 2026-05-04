@@ -584,12 +584,12 @@ function addFile() {
   markDirty(name);
 }
 
-function deleteFile(filename) {
+async function deleteFile(filename) {
   if (['index.html', 'script.js', 'style.css', 'config.json'].includes(filename)) {
     showToast('Les fichiers principaux ne peuvent pas être supprimés', 'warning');
     return;
   }
-  if (!confirm(t('confirmDeleteFile'))) return;
+  if (!await showConfirm(t('confirmDeleteFile'), { icon: '🗑', danger: true, confirmText: t('tbDeleteCol'), cancelText: t('btnClose') })) return;
   delete state.project.files[filename];
   if (state.models[filename]) {
     state.models[filename].dispose();
@@ -1059,10 +1059,10 @@ function renderTemplates() {
   });
 }
 
-function loadTemplate(id) {
+async function loadTemplate(id) {
   const tpl = window.WIDGET_TEMPLATES.find(t => t.id === id);
   if (!tpl) return;
-  if (!confirm(t('confirmLoadTemplate'))) return;
+  if (!await showConfirm(t('confirmLoadTemplate'), { icon: '📚', confirmText: t('btnTbCreate').replace('✅ ', '') })) return;
 
   // Dispose old models
   Object.values(state.models).forEach(m => m.dispose());
@@ -1256,8 +1256,9 @@ ${html}
   document.close();
 
   // Attach uninstall handler after write (document is now new)
-  document.getElementById('studio-uninstall-btn').addEventListener('click', () => {
-    if (confirm(t('uninstallConfirm'))) {
+  document.getElementById('studio-uninstall-btn').addEventListener('click', async () => {
+    const ok = await showConfirm(t('uninstallConfirm'), { icon: '✏️', confirmText: t('btnEditIde').replace('✏️ ', '') });
+    if (ok) {
       grist.setOptions({ _installed: false })
         .then(() => location.reload())
         .catch(() => location.reload());
@@ -1266,7 +1267,7 @@ ${html}
 }
 
 async function uninstallWidget() {
-  if (!confirm(t('uninstallConfirm'))) return;
+  if (!await showConfirm(t('uninstallConfirm'), { icon: '✏️', confirmText: t('btnEditIde').replace('✏️ ', '') })) return;
   try {
     await grist.setOptions({ _installed: false });
     location.reload();
@@ -1438,7 +1439,7 @@ async function loadExistingTables() {
 }
 
 async function deleteGristTable(tableName) {
-  if (!confirm(`${t('tbDeleteTable')} "${tableName}" ?`)) return;
+  if (!await showConfirm(`${t('tbDeleteTable')} <strong>${tableName}</strong> ?`, { icon: '🗑', danger: true, confirmText: t('tbDeleteCol'), cancelText: t('btnClose') })) return;
   try {
     await grist.docApi.applyUserActions([['RemoveTable', tableName]]);
     showToast(t('toastTableDeleted'), 'success');
@@ -1698,6 +1699,45 @@ URL finale à coller : <code>https://ton-domaine.fr/</code></p>
 };
 
 // ============ UI HELPERS ============
+// ============ MODERN CONFIRM DIALOG ============
+function showConfirm(message, { confirmText, cancelText, icon = '⚠️', danger = false } = {}) {
+  return new Promise((resolve) => {
+    const existing = document.getElementById('studio-confirm-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'studio-confirm-overlay';
+    overlay.innerHTML = `
+      <div class="sc-backdrop"></div>
+      <div class="sc-dialog" role="dialog" aria-modal="true">
+        <div class="sc-icon">${icon}</div>
+        <p class="sc-message">${message}</p>
+        <div class="sc-actions">
+          <button class="sc-btn sc-cancel">${cancelText || t('btnClose')}</button>
+          <button class="sc-btn sc-ok ${danger ? 'sc-danger' : ''}">${confirmText || 'OK'}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    // Animate in
+    requestAnimationFrame(() => overlay.classList.add('sc-visible'));
+
+    const close = (result) => {
+      overlay.classList.remove('sc-visible');
+      setTimeout(() => overlay.remove(), 200);
+      resolve(result);
+    };
+
+    overlay.querySelector('.sc-ok').addEventListener('click', () => close(true));
+    overlay.querySelector('.sc-cancel').addEventListener('click', () => close(false));
+    overlay.querySelector('.sc-backdrop').addEventListener('click', () => close(false));
+    overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(false); });
+
+    // Focus confirm button
+    setTimeout(() => overlay.querySelector('.sc-ok').focus(), 50);
+  });
+}
+
 function showToast(msg, type = 'info') {
   const toast = document.createElement('div');
   toast.className = 'toast ' + type;

@@ -51,6 +51,10 @@
         <span class="icon">⬆</span> <span data-i18n="btnImport">Import</span>
       </button>
       <span class="separator-v"></span>
+      <button class="btn-toolbar" id="btnTableBuilder" data-i18n-title="titleTableBuilder" title="Créer des tables Grist">
+        <span class="icon">🗂</span> <span data-i18n="btnTableBuilder">Tables</span>
+      </button>
+      <span class="separator-v"></span>
       <button class="btn-toolbar" id="btnProxySettings" data-i18n-title="titleProxy" title="Configuration du proxy CORS">
         <span class="icon">🔌</span> <span data-i18n="btnProxy">Proxy</span>
       </button>
@@ -776,6 +780,51 @@ const options = await grist.getOptions();</code></pre>
             <p>Le code est open-source (Apache 2.0) sur <a href="https://github.com/isaytoo/grist-widget-studio-pro" target="_blank">GitHub</a>. Les PRs et issues sont les bienvenues !</p>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table Builder Modal -->
+  <div class="modal" id="modalTableBuilder">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-wide">
+      <div class="modal-header">
+        <h2 data-i18n="modalTableBuilderTitle">🗂 Créer des tables Grist</h2>
+        <button class="modal-close" data-close="modalTableBuilder">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-description" data-i18n="tableBuilderDesc">Crée une nouvelle table directement dans ton document Grist. Elle apparaitra immédiatement dans le panneau gauche de Grist.</p>
+
+        <div class="tb-form">
+          <div class="tb-row">
+            <label data-i18n="tableNameLabel">Nom de la table</label>
+            <input type="text" id="tbTableName" class="input-text" placeholder="MaTable" data-i18n-placeholder="tableNamePlaceholder">
+          </div>
+
+          <div class="tb-columns-header">
+            <span data-i18n="tbColumnsTitle">Colonnes</span>
+            <button class="btn-primary btn-sm" id="btnTbAddColumn" data-i18n="btnTbAddColumn">+ Ajouter une colonne</button>
+          </div>
+
+          <div class="tb-columns-list" id="tbColumnsList">
+            <!-- columns added dynamically -->
+          </div>
+
+          <div class="tb-actions">
+            <button class="btn-primary" id="btnTbCreate" data-i18n="btnTbCreate">✅ Créer la table dans Grist</button>
+            <button class="btn-secondary" data-close="modalTableBuilder" data-i18n="btnClose">Fermer</button>
+          </div>
+        </div>
+
+        <div class="tb-existing">
+          <div class="tb-existing-header">
+            <span data-i18n="tbExistingTitle">📊 Tables existantes</span>
+            <button class="btn-tiny" id="btnTbRefresh" title="Rafraîchir">↻</button>
+          </div>
+          <div class="tb-existing-list" id="tbExistingList"><em data-i18n="loadingTables">Chargement...</em></div>
+        </div>
+
+        <div id="tbResult" class="tb-result" style="display:none;"></div>
       </div>
     </div>
   </div>

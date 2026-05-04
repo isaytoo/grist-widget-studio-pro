@@ -130,6 +130,29 @@ const i18n = {
     installedMode: 'Mode widget installé',
     btnEditIde: '✏️ Modifier (retour IDE)',
     uninstallConfirm: 'Retourner à l\'IDE ? Le widget installé sera désactivé.',
+    // Table Builder
+    btnTableBuilder: 'Tables',
+    titleTableBuilder: 'Créer des tables Grist',
+    modalTableBuilderTitle: '🗂 Créer des tables Grist',
+    tableBuilderDesc: 'Crée une nouvelle table directement dans ton document Grist. Elle apparaîtra immédiatement dans le panneau gauche de Grist.',
+    tableNameLabel: 'Nom de la table',
+    tableNamePlaceholder: 'MaTable',
+    tbColumnsTitle: 'Colonnes',
+    btnTbAddColumn: '+ Ajouter une colonne',
+    btnTbCreate: '✅ Créer la table dans Grist',
+    tbExistingTitle: '📊 Tables existantes',
+    tbColName: 'Nom',
+    tbColType: 'Type',
+    tbColLabel: 'Label',
+    tbDeleteCol: 'Supprimer',
+    toastTableCreated: '✅ Table créée dans Grist !',
+    toastTableError: 'Erreur création table : ',
+    toastTableNameRequired: 'Donne un nom à la table',
+    toastTableColRequired: 'Chaque colonne doit avoir un nom',
+    tbDeleteTable: 'Supprimer cette table ?',
+    toastTableDeleted: 'Table supprimée',
+    toastTableDeleteError: 'Erreur suppression : ',
+    tbSnippetCopied: 'Snippet copié dans script.js',
     // Misc
     confirmDeleteFile: 'Supprimer ce fichier ?',
     confirmLoadTemplate: 'Charger ce template ? Le projet actuel sera remplacé.',
@@ -259,6 +282,29 @@ const i18n = {
     installedMode: 'Installed widget mode',
     btnEditIde: '✏️ Edit (back to IDE)',
     uninstallConfirm: 'Return to IDE? The installed widget will be deactivated.',
+    // Table Builder
+    btnTableBuilder: 'Tables',
+    titleTableBuilder: 'Create Grist tables',
+    modalTableBuilderTitle: '🗂 Create Grist tables',
+    tableBuilderDesc: 'Create a new table directly in your Grist document. It will appear immediately in the Grist left panel.',
+    tableNameLabel: 'Table name',
+    tableNamePlaceholder: 'MyTable',
+    tbColumnsTitle: 'Columns',
+    btnTbAddColumn: '+ Add column',
+    btnTbCreate: '✅ Create table in Grist',
+    tbExistingTitle: '📊 Existing tables',
+    tbColName: 'Name',
+    tbColType: 'Type',
+    tbColLabel: 'Label',
+    tbDeleteCol: 'Delete',
+    toastTableCreated: '✅ Table created in Grist!',
+    toastTableError: 'Table creation error: ',
+    toastTableNameRequired: 'Please give the table a name',
+    toastTableColRequired: 'Every column must have a name',
+    tbDeleteTable: 'Delete this table?',
+    toastTableDeleted: 'Table deleted',
+    toastTableDeleteError: 'Delete error: ',
+    tbSnippetCopied: 'Snippet added to script.js',
     // Misc
     confirmDeleteFile: 'Delete this file?',
     confirmLoadTemplate: 'Load this template? The current project will be replaced.',
@@ -1247,6 +1293,142 @@ async function installWidget() {
   }
 }
 
+// ============ TABLE BUILDER ============
+const GRIST_COL_TYPES = [
+  'Text', 'Numeric', 'Int', 'Bool', 'Date', 'DateTime',
+  'Choice', 'ChoiceList', 'Ref', 'RefList', 'Attachments'
+];
+
+let tbColumns = [];
+
+function openTableBuilder() {
+  tbColumns = [{ id: 'Nom', type: 'Text', label: '' }];
+  document.getElementById('tbTableName').value = '';
+  document.getElementById('tbResult').style.display = 'none';
+  renderTbColumns();
+  loadExistingTables();
+  openModal('modalTableBuilder');
+}
+
+function renderTbColumns() {
+  const list = document.getElementById('tbColumnsList');
+  if (!tbColumns.length) {
+    list.innerHTML = `<div class="empty-state">${t('btnTbAddColumn')}</div>`;
+    return;
+  }
+  list.innerHTML = tbColumns.map((col, i) => `
+    <div class="tb-col-row" data-idx="${i}">
+      <input class="input-text tb-col-id" placeholder="${t('tbColName')}" value="${col.id}"
+        oninput="tbColumns[${i}].id = this.value">
+      <select class="select-small tb-col-type" onchange="tbColumns[${i}].type = this.value">
+        ${GRIST_COL_TYPES.map(tp => `<option value="${tp}" ${col.type === tp ? 'selected' : ''}>${tp}</option>`).join('')}
+      </select>
+      <input class="input-text tb-col-label" placeholder="${t('tbColLabel')}" value="${col.label}"
+        oninput="tbColumns[${i}].label = this.value">
+      <button class="btn-icon-small" onclick="tbRemoveColumn(${i})" title="${t('tbDeleteCol')}">🗑</button>
+    </div>
+  `).join('');
+}
+
+function tbAddColumn() {
+  tbColumns.push({ id: 'Colonne' + (tbColumns.length + 1), type: 'Text', label: '' });
+  renderTbColumns();
+}
+
+function tbRemoveColumn(idx) {
+  tbColumns.splice(idx, 1);
+  renderTbColumns();
+}
+
+async function createGristTable() {
+  if (!state.gristReady) {
+    showToast(t('toastGristUnavailable'), 'error');
+    return;
+  }
+  const name = document.getElementById('tbTableName').value.trim();
+  if (!name) { showToast(t('toastTableNameRequired'), 'warning'); return; }
+  if (tbColumns.some(c => !c.id.trim())) { showToast(t('toastTableColRequired'), 'warning'); return; }
+
+  const columns = tbColumns.map(c => ({
+    id: c.id.trim().replace(/\s+/g, '_'),
+    fields: {
+      type: c.type,
+      ...(c.label.trim() ? { label: c.label.trim() } : {})
+    }
+  }));
+
+  try {
+    await grist.docApi.applyUserActions([['AddTable', name, columns]]);
+
+    const resultEl = document.getElementById('tbResult');
+    const snippet = buildFetchSnippet(name, columns);
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `
+      <div class="tb-success">
+        <strong>${t('toastTableCreated')}</strong>
+        <p style="font-size:12px;margin:6px 0 4px;color:var(--text-muted);">Snippet à utiliser dans script.js :</p>
+        <pre class="tb-snippet">${escHtml(snippet)}</pre>
+        <button class="btn-primary btn-sm" onclick="insertTableSnippet(${JSON.stringify(snippet).replace(/"/g, '&quot;')})">→ ${t('tbSnippetCopied')}</button>
+      </div>`;
+
+    showToast(t('toastTableCreated'), 'success');
+    refreshTables();
+    loadExistingTables();
+  } catch (e) {
+    showToast(t('toastTableError') + e.message, 'error');
+  }
+}
+
+function buildFetchSnippet(tableName, columns) {
+  const fields = columns.map(c => `    // ${c.id}`).join('\n');
+  return `// Lire la table "${tableName}"\ngrist.docApi.fetchTable('${tableName}').then(data => {\n  console.log(data);\n});\n\n// Ajouter une ligne\ngrist.docApi.applyUserActions([[\n  'AddRecord', '${tableName}', null,\n  { ${columns.map(c => `${c.id}: ''`).join(', ')} }\n]]);`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function insertTableSnippet(snippet) {
+  if (state.activeFile !== 'script.js') openFile('script.js');
+  setTimeout(() => {
+    const cur = state.editor.getValue();
+    state.editor.setValue(cur + '\n\n' + snippet);
+    showToast(t('tbSnippetCopied'), 'success');
+  }, 100);
+}
+
+async function loadExistingTables() {
+  const listEl = document.getElementById('tbExistingList');
+  if (!listEl) return;
+  listEl.innerHTML = `<em>${t('loadingTables')}</em>`;
+  try {
+    const meta = await grist.docApi.fetchTable('_grist_Tables');
+    const ids = meta.tableId || [];
+    if (!ids.length) { listEl.innerHTML = `<em>${t('noTables')}</em>`; return; }
+    listEl.innerHTML = ids
+      .filter(id => !id.startsWith('_grist_'))
+      .map(id => `
+        <div class="tb-existing-row">
+          <span class="tb-tbl-name">📋 ${id}</span>
+          <button class="btn-tiny" onclick="deleteGristTable('${id}')" title="${t('tbDeleteTable')}">🗑</button>
+        </div>`).join('');
+  } catch (e) {
+    listEl.innerHTML = `<em>${t('gristUnavailable')}</em>`;
+  }
+}
+
+async function deleteGristTable(tableName) {
+  if (!confirm(`${t('tbDeleteTable')} "${tableName}" ?`)) return;
+  try {
+    await grist.docApi.applyUserActions([['RemoveTable', tableName]]);
+    showToast(t('toastTableDeleted'), 'success');
+    refreshTables();
+    loadExistingTables();
+  } catch (e) {
+    showToast(t('toastTableDeleteError') + e.message, 'error');
+  }
+}
+
 // ============ EXPORT/IMPORT ZIP ============
 async function exportZip() {
   if (typeof JSZip === 'undefined') {
@@ -1555,6 +1737,12 @@ function setupEventListeners() {
     });
   });
   
+  // Table Builder
+  document.getElementById('btnTableBuilder').addEventListener('click', openTableBuilder);
+  document.getElementById('btnTbAddColumn').addEventListener('click', tbAddColumn);
+  document.getElementById('btnTbCreate').addEventListener('click', createGristTable);
+  document.getElementById('btnTbRefresh').addEventListener('click', loadExistingTables);
+
   // Proxy settings
   document.getElementById('btnProxySettings').addEventListener('click', openProxyModal);
   document.getElementById('btnTestProxy').addEventListener('click', testProxy);

@@ -1756,6 +1756,132 @@ body {
   background: var(--bg-hover);
 }
 
+/* ============ TABLE BUILDER ============ */
+.tb-form {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.tb-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.tb-row label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  min-width: 110px;
+}
+
+.tb-columns-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.tb-col-row {
+  display: grid;
+  grid-template-columns: 1fr 130px 1fr 32px;
+  gap: 6px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+
+.tb-col-id, .tb-col-label {
+  font-size: 12px;
+}
+
+.tb-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.tb-existing {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tb-existing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.tb-existing-list {
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.tb-existing-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+
+.tb-existing-row:last-child {
+  border-bottom: none;
+}
+
+.tb-existing-row:hover {
+  background: var(--bg-hover);
+}
+
+.tb-tbl-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.tb-result {
+  margin-top: 12px;
+}
+
+.tb-success {
+  background: color-mix(in srgb, var(--success) 10%, var(--bg-primary));
+  border: 1px solid var(--success);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.tb-snippet {
+  background: var(--bg-editor);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 11px;
+  overflow-x: auto;
+  color: var(--text-primary);
+  margin: 6px 0 8px;
+}
+
 /* ============ SCROLLBARS ============ */
 ::-webkit-scrollbar {
   width: 8px;

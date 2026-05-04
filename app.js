@@ -417,11 +417,17 @@ try {
     }
 
     if (options && options._project) {
-      try {
-        loadProject(JSON.parse(options._project));
-        showToast(t('toastLoaded'), 'success');
-      } catch (e) {
-        console.error('Load error:', e);
+      if (state.monaco) {
+        // Monaco already ready — load immediately
+        try {
+          loadProject(JSON.parse(options._project));
+          showToast(t('toastLoaded'), 'success');
+        } catch (e) {
+          console.error('Load error:', e);
+        }
+      } else {
+        // Monaco not yet initialised — queue for when it's ready
+        state.pendingProject = options._project;
       }
     }
     if (options && options._proxy) {
@@ -429,7 +435,7 @@ try {
         state.proxy = Object.assign(state.proxy, JSON.parse(options._proxy));
       } catch (e) { /* ignore */ }
     }
-    refreshTables();
+    if (state.monaco) refreshTables();
   });
 } catch (e) {
   console.warn('Grist API not available:', e);
@@ -508,6 +514,17 @@ require(['vs/editor/editor.main'], function () {
   state.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => saveProject());
   state.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runPreview(true));
 
+  // Apply any project queued before Monaco was ready (race condition guard)
+  if (state.pendingProject) {
+    try {
+      loadProject(JSON.parse(state.pendingProject));
+      showToast(t('toastLoaded'), 'success');
+    } catch (e) {
+      console.error('Load error (deferred):', e);
+    }
+    state.pendingProject = null;
+  }
+
   // Initial render
   applyI18n();
   renderFileTree();
@@ -516,6 +533,7 @@ require(['vs/editor/editor.main'], function () {
   runPreview();
   initApiTester();
   setupEventListeners();
+  refreshTables();
 });
 
 function getLanguageFromFile(filename) {
@@ -1267,6 +1285,9 @@ ${html}
 <script>${js}<\/script>
 </body></html>`;
   }
+
+  // Dispose Monaco editor to prevent DOM errors after document.write() destroys its nodes.
+  if (state.editor) { try { state.editor.dispose(); } catch (e) { /* ignore */ } }
 
   // Write into current window — no DOM access needed after this point.
   document.open();

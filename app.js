@@ -1239,12 +1239,9 @@ function downloadJson() {
 
 // ============ INSTALLED MODE RENDERER ============
 function renderInstalledWidget(html, js) {
-  // IMPORTANT: we stay in the SAME window/document (same iframe) so that
-  // window.parent === Grist and the plugin API keeps working.
-  //
-  // We do NOT call document.write() because that triggers Grist's internal
-  // UrlState dispose cascade which errors on the replaced DOM nodes.
-  // Instead we swap document.body.innerHTML and keep <head> intact.
+  // Uses document.write() to fully reset grist-plugin-api.js so the installed
+  // widget's grist.ready() / grist.onOptions() re-register correctly with Grist.
+  // window.parent stays === Grist (same iframe). UrlState console error is non-fatal.
 
   window.__studioUninstall = async function() {
     const ok = await showConfirm(t('uninstallConfirm'), { icon: '✏️', confirmText: t('btnEditIde').replace('✏️ ', '') });
@@ -1263,87 +1260,36 @@ function renderInstalledWidget(html, js) {
     state.monaco = null;
   } catch (_) {}
 
-  // 2 rAF ticks let Monaco's already-queued callbacks run before we wipe the DOM
+  const barHtml = `
+    <div id="studio-installed-bar" style="position:fixed;top:0;left:0;right:0;height:28px;background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:99999;font-family:sans-serif;font-size:11px;color:#94a3b8;box-sizing:border-box;">
+      <span>⚡ Widget Studio Pro — <strong style="color:#f1f5f9;">${t('installedMode')}</strong></span>
+      <button onclick="__studioUninstall()" style="background:#3b82f6;color:white;border:none;border-radius:4px;padding:2px 10px;cursor:pointer;font-size:11px;">${t('btnEditIde')}</button>
+    </div>
+    <div style="height:28px;"></div>`;
+
+  // 2 rAF ticks: let Monaco queued callbacks flush before document.write()
   requestAnimationFrame(() => requestAnimationFrame(() => {
-
-    // ── 1. Clean up <head>: remove Studio Pro stylesheet so its CSS vars/resets
-    //       don't bleed into the installed widget.
-    document.querySelectorAll('head > link[rel="stylesheet"], head > style:not(#studio-base-reset)').forEach(el => el.remove());
-
-    // ── 2. Inject a neutral base reset into <head>
-    if (!document.getElementById('studio-base-reset')) {
-      const reset = document.createElement('style');
-      reset.id = 'studio-base-reset';
-      reset.textContent = '*,*::before,*::after{box-sizing:border-box}html,body{margin:0;padding:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#1a1a1a;}';
-      document.head.appendChild(reset);
-    }
-
-    // ── 3. Extract ALL <style> tags from the full _html string.
-    //       installWidget() builds _html as: packageTags + <style>css</style> + index.html
-    //       so the CSS lives BEFORE <body> and a plain bodyMatch regex misses it.
-    const collectedStyles = [];
-    const htmlNoStyles = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, m => {
-      collectedStyles.push(m);
-      return '';
-    });
-    // Inject all collected styles into <head>
-    collectedStyles.forEach(styleStr => {
-      const wrap = document.createElement('div');
-      wrap.innerHTML = styleStr;
-      const el = wrap.querySelector('style');
-      if (el) document.head.appendChild(el);
-    });
-
-    // ── 4. Extract body markup (no styles left in htmlNoStyles)
-    let bodyContent = htmlNoStyles;
-    const bodyMatch = htmlNoStyles.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-    if (bodyMatch) {
-      bodyContent = bodyMatch[1];
+    const isFullDoc = /<html[\s>]/i.test(html) || /<!doctype/i.test(html);
+    let fullContent;
+    if (isFullDoc) {
+      // Inject bar into existing full document
+      fullContent = html
+        .replace(/<body([^>]*)>/i, `<body$1>\n${barHtml}`)
+        .replace('</head>', `<style>body{padding-top:0!important}</style>\n</head>`);
     } else {
-      // No <body> wrapper — strip any remaining html/head/body tags
-      bodyContent = htmlNoStyles
-        .replace(/<html[^>]*>|<\/html>/gi, '')
-        .replace(/<head[\s\S]*?<\/head>/gi, '')
-        .replace(/<body[^>]*>|<\/body>/gi, '');
+      fullContent = `<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<script src="https://docs.getgrist.com/grist-plugin-api.js"><\/script>
+<style>html,body{margin:0;padding:0;height:100%;}</style>
+</head><body>
+${barHtml}
+${html}
+<script>${js}<\/script>
+</body></html>`;
     }
-
-    // ── 5. Parse into temp container
-    const tmp = document.createElement('div');
-    tmp.innerHTML = bodyContent;
-
-    // ── 6. Build bar
-    const bar = document.createElement('div');
-    bar.id = 'studio-installed-bar';
-    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:28px;background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:99999;font-family:sans-serif;font-size:11px;color:#94a3b8;box-sizing:border-box;';
-    bar.innerHTML = `<span>⚡ Widget Studio Pro — <strong style="color:#f1f5f9;">${t('installedMode')}</strong></span>
-      <button onclick="__studioUninstall()" style="background:#3b82f6;color:white;border:none;border-radius:4px;padding:2px 10px;cursor:pointer;font-size:11px;">${t('btnEditIde')}</button>`;
-
-    // ── 6. Widget container (sits below the 28px bar)
-    const container = document.createElement('div');
-    container.id = 'studio-widget-root';
-    container.style.cssText = 'position:fixed;top:28px;left:0;right:0;bottom:0;overflow:auto;';
-    container.appendChild(tmp);
-
-    // ── 7. Re-execute <script> tags from widget HTML (innerHTML skips them)
-    container.querySelectorAll('script').forEach(old => {
-      const s = document.createElement('script');
-      [...old.attributes].forEach(a => s.setAttribute(a.name, a.value));
-      s.textContent = old.textContent;
-      old.replaceWith(s);
-    });
-
-    // ── 8. Swap body
-    document.body.innerHTML = '';
-    document.body.style.cssText = 'margin:0;padding:0;height:100%;';
-    document.body.appendChild(bar);
-    document.body.appendChild(container);
-
-    // ── 9. Append widget JS
-    if (js && js.trim()) {
-      const s = document.createElement('script');
-      s.textContent = js;
-      document.body.appendChild(s);
-    }
+    document.open();
+    document.write(fullContent);
+    document.close();
   }));
 }
 

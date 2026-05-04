@@ -1220,29 +1220,49 @@ function downloadJson() {
 
 // ============ INSTALLED MODE RENDERER ============
 function renderInstalledWidget(html, js) {
-  // Remplace toute l'interface par une iframe contenant le widget final
-  document.body.innerHTML = `
-    <div id="installed-bar" style="position:fixed;top:0;left:0;right:0;height:32px;background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:9999;font-family:sans-serif;font-size:12px;color:#94a3b8;">
+  // IMPORTANT: we write directly into the current document (same iframe context)
+  // so that window.parent === Grist and the Grist Plugin API works correctly.
+  // A nested iframe would break postMessage routing and prevent grist.ready() calls.
+  const barHtml = `
+    <div id="studio-installed-bar" style="position:fixed;top:0;left:0;right:0;height:28px;background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:99999;font-family:sans-serif;font-size:11px;color:#94a3b8;box-sizing:border-box;">
       <span>⚡ Widget Studio Pro — <strong style="color:#f1f5f9;">${t('installedMode')}</strong></span>
-      <button onclick="uninstallWidget()" style="background:#3b82f6;color:white;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px;">${t('btnEditIde')}</button>
+      <button id="studio-uninstall-btn" style="background:#3b82f6;color:white;border:none;border-radius:4px;padding:2px 10px;cursor:pointer;font-size:11px;">${t('btnEditIde')}</button>
     </div>
-    <iframe id="installed-frame" style="position:fixed;top:32px;left:0;right:0;bottom:0;width:100%;height:calc(100% - 32px);border:none;"></iframe>
-  `;
-  const iframe = document.getElementById('installed-frame');
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open();
-  // If `html` is already a full document (new install format), write it as-is.
-  // Older installs stored an HTML body fragment with `js` separate, so we keep
-  // the legacy wrapper for backward compatibility.
-  const isFullDoc = /<html[\s>]/i.test(html) || /<head[\s>]/i.test(html) || /<!doctype/i.test(html);
+    <div style="height:28px;flex-shrink:0;"></div>`;
+
+  // Build full page content
+  const isFullDoc = /<html[\s>]/i.test(html) || /<!doctype/i.test(html);
+  let fullContent;
   if (isFullDoc) {
-    doc.write(html);
+    // Inject bar script + styles into existing full document
+    fullContent = html
+      .replace(/<body([^>]*)>/i, `<body$1>\n${barHtml}`)
+      .replace('</head>', `<style>body{padding-top:0 !important;}</style>\n</head>`);
   } else {
-    doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-    <script src="https://docs.getgrist.com/grist-plugin-api.js"><\/script>
-    </head><body>${html}<script>${js}<\/script></body></html>`);
+    fullContent = `<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<script src="https://docs.getgrist.com/grist-plugin-api.js"><\/script>
+<style>html,body{margin:0;padding:0;height:100%;}</style>
+</head><body>
+${barHtml}
+${html}
+<script>${js}<\/script>
+</body></html>`;
   }
-  doc.close();
+
+  // Write into current window (same iframe → window.parent = Grist)
+  document.open();
+  document.write(fullContent);
+  document.close();
+
+  // Attach uninstall handler after write (document is now new)
+  document.getElementById('studio-uninstall-btn').addEventListener('click', () => {
+    if (confirm(t('uninstallConfirm'))) {
+      grist.setOptions({ _installed: false })
+        .then(() => location.reload())
+        .catch(() => location.reload());
+    }
+  });
 }
 
 async function uninstallWidget() {

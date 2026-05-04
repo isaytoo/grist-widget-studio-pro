@@ -673,7 +673,37 @@ function markDirty(filename) {
 // <html>/<head>/<body>/<!doctype>). User-defined <head> content (including
 // inline <style> blocks, <link>, <meta>) is preserved instead of being injected
 // into the wrapper's body.
-function composeFullPage({ html, css, js, packages, withConsoleProbe }) {
+const GRIST_PROXY_SCRIPT = `
+(function(){
+  function install(){
+    if(typeof grist==='undefined'){setTimeout(install,20);return;}
+    var pending={},seq=0;
+    window.addEventListener('message',function(e){
+      if(!e.data)return;
+      if(e.data.type==='__gp_res'){var cb=pending[e.data.id];if(cb){delete pending[e.data.id];e.data.err?cb.reject(new Error(e.data.err)):cb.resolve(e.data.result);}}
+      if(e.data.type==='__gp_evt'){if(e.data.ev==='options'&&window.__gpOptCb)window.__gpOptCb(e.data.d);if(e.data.ev==='record'&&window.__gpRecCb)window.__gpRecCb(e.data.d);if(e.data.ev==='records'&&window.__gpRecsCb)window.__gpRecsCb(e.data.d,e.data.m);}
+    });
+    function call(method,args){
+      return new Promise(function(res,rej){
+        var id=++seq;pending[id]={resolve:res,reject:rej};
+        parent.postMessage({type:'__gp_req',id:id,method:method,args:args||[]},'*');
+        setTimeout(function(){if(pending[id]){delete pending[id];rej(new Error('Grist proxy timeout'));}},10000);
+      });
+    }
+    grist.docApi=new Proxy({},{get:function(_,p){return function(){return call('docApi.'+p,Array.from(arguments));};}});
+    grist.ready=function(o){parent.postMessage({type:'__gp_ready',opts:o||{}},'*');};
+    grist.onOptions=function(cb){window.__gpOptCb=cb;};
+    grist.onRecord=function(cb){window.__gpRecCb=cb;};
+    grist.onRecords=function(cb){window.__gpRecsCb=cb;};
+    grist.setOptions=function(o){return call('setOptions',[o]);};
+    grist.getOptions=function(){return call('getOptions',[]);};
+    parent.postMessage({type:'__gp_ping'},'*');
+  }
+  install();
+})();
+`;
+
+function composeFullPage({ html, css, js, packages, withConsoleProbe, withGristProxy }) {
   const packageTags = (packages || []).map(p => {
     const url = `https://cdn.jsdelivr.net/npm/${p}`;
     if (p.endsWith('.css') || p.includes('leaflet')) {
@@ -683,6 +713,7 @@ function composeFullPage({ html, css, js, packages, withConsoleProbe }) {
   }).join('\n');
 
   const gristApi = `<script src="https://docs.getgrist.com/grist-plugin-api.js"></` + `script>`;
+  const gristProxy = withGristProxy ? `<script>${GRIST_PROXY_SCRIPT}</` + `script>` : '';
 
   const consoleScript = withConsoleProbe ? `<script>
 (function() {
@@ -708,7 +739,7 @@ function composeFullPage({ html, css, js, packages, withConsoleProbe }) {
 
   if (isFullDoc) {
     let out = html;
-    const headInjection = `\n${gristApi}\n${packageTags}\n${userStyle}\n`;
+    const headInjection = `\n${gristApi}\n${gristProxy}\n${packageTags}\n${userStyle}\n`;
     if (/<\/head>/i.test(out)) {
       out = out.replace(/<\/head>/i, headInjection + '</head>');
     } else if (/<head[^>]*>/i.test(out)) {
@@ -764,7 +795,8 @@ function runPreview(showToastMsg = false) {
   const fullHtml = composeFullPage({
     html, css, js,
     packages: state.project.packages || [],
-    withConsoleProbe: true
+    withConsoleProbe: true,
+    withGristProxy: true
   });
 
   const blob = new Blob([fullHtml], { type: 'text/html' });
@@ -776,10 +808,43 @@ function runPreview(showToastMsg = false) {
   setStatus('ok', 'Prévisualisation');
 }
 
-// Listen to console messages from preview iframe
+// Listen to console + Grist proxy messages from preview iframe
 window.addEventListener('message', (e) => {
   if (e.data && e.data.type === '__studio_console') {
     addConsoleEntry(e.data.level, e.data.args.join(' '));
+    return;
+  }
+
+  const previewWin = document.getElementById('previewFrame')?.contentWindow;
+  if (!e.data || e.source !== previewWin) return;
+
+  // Preview widget called grist.ready() → send back current options
+  if (e.data.type === '__gp_ready' || e.data.type === '__gp_ping') {
+    previewWin.postMessage({ type: '__gp_evt', ev: 'options', d: state.gristOptions || {} }, '*');
+    return;
+  }
+
+  // Preview widget called a docApi / setOptions / getOptions method
+  if (e.data.type === '__gp_req') {
+    const { id, method, args } = e.data;
+    let p;
+    try {
+      if (method.startsWith('docApi.')) {
+        const fn = method.slice('docApi.'.length);
+        if (typeof grist?.docApi?.[fn] === 'function') p = grist.docApi[fn](...args);
+      } else if (method === 'setOptions' && state.gristReady) {
+        p = grist.setOptions(...args);
+      } else if (method === 'getOptions') {
+        p = Promise.resolve(state.gristOptions || {});
+      }
+    } catch (err) {
+      previewWin.postMessage({ type: '__gp_res', id, err: err.message }, '*');
+      return;
+    }
+    if (p) {
+      p.then(r  => previewWin.postMessage({ type: '__gp_res', id, result: r }, '*'))
+       .catch(err => previewWin.postMessage({ type: '__gp_res', id, err: err.message }, '*'));
+    }
   }
 });
 

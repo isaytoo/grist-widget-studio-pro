@@ -1265,32 +1265,46 @@ function renderInstalledWidget(html, js) {
 
   // 2 rAF ticks let Monaco's already-queued callbacks run before we wipe the DOM
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    // Reset <body> styles
-    document.body.style.cssText = 'margin:0;padding:0;height:100%;overflow:auto;';
 
-    // Build the bar element
+    // ── 1. Clean up <head>: remove Studio Pro stylesheet so its CSS vars/resets
+    //       don't bleed into the installed widget.
+    document.querySelectorAll('head > link[rel="stylesheet"], head > style:not(#studio-base-reset)').forEach(el => el.remove());
+
+    // ── 2. Inject a neutral base reset into <head>
+    if (!document.getElementById('studio-base-reset')) {
+      const reset = document.createElement('style');
+      reset.id = 'studio-base-reset';
+      reset.textContent = '*,*::before,*::after{box-sizing:border-box}html,body{margin:0;padding:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#1a1a1a;}';
+      document.head.appendChild(reset);
+    }
+
+    // ── 3. Extract body content from html (strip <html>/<head>/<body> wrappers)
+    let bodyContent = html;
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    if (bodyMatch) bodyContent = bodyMatch[1];
+    bodyContent = bodyContent.replace(/<head[\s\S]*?<\/head>/gi, '');
+
+    // ── 4. Parse into a temp container so we can hoist <style> tags to <head>
+    const tmp = document.createElement('div');
+    tmp.innerHTML = bodyContent;
+    tmp.querySelectorAll('style').forEach(s => {
+      document.head.appendChild(s); // move widget CSS to <head> for proper cascade
+    });
+
+    // ── 5. Build bar
     const bar = document.createElement('div');
     bar.id = 'studio-installed-bar';
     bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:28px;background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:99999;font-family:sans-serif;font-size:11px;color:#94a3b8;box-sizing:border-box;';
     bar.innerHTML = `<span>⚡ Widget Studio Pro — <strong style="color:#f1f5f9;">${t('installedMode')}</strong></span>
       <button onclick="__studioUninstall()" style="background:#3b82f6;color:white;border:none;border-radius:4px;padding:2px 10px;cursor:pointer;font-size:11px;">${t('btnEditIde')}</button>`;
 
-    // Widget container (below bar)
+    // ── 6. Widget container (sits below the 28px bar)
     const container = document.createElement('div');
     container.id = 'studio-widget-root';
     container.style.cssText = 'position:fixed;top:28px;left:0;right:0;bottom:0;overflow:auto;';
+    container.appendChild(tmp);
 
-    // Strip outer <html>/<head>/<body> if present — we only need the body content
-    let bodyContent = html;
-    const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-    if (bodyMatch) bodyContent = bodyMatch[1];
-    // Remove any <head>…</head> block that may still be in html
-    bodyContent = bodyContent.replace(/<head[\s\S]*?<\/head>/gi, '');
-
-    // Inject HTML (scripts won't execute via innerHTML — handled below)
-    container.innerHTML = bodyContent;
-
-    // Re-execute <script> tags (innerHTML skips them)
+    // ── 7. Re-execute <script> tags from widget HTML (innerHTML skips them)
     container.querySelectorAll('script').forEach(old => {
       const s = document.createElement('script');
       [...old.attributes].forEach(a => s.setAttribute(a.name, a.value));
@@ -1298,12 +1312,13 @@ function renderInstalledWidget(html, js) {
       old.replaceWith(s);
     });
 
-    // Swap body content
+    // ── 8. Swap body
     document.body.innerHTML = '';
+    document.body.style.cssText = 'margin:0;padding:0;height:100%;';
     document.body.appendChild(bar);
     document.body.appendChild(container);
 
-    // Append widget JS as a new script tag so it runs in the current context
+    // ── 9. Append widget JS
     if (js && js.trim()) {
       const s = document.createElement('script');
       s.textContent = js;

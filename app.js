@@ -1572,11 +1572,11 @@ function showExportMenu(anchorEl) {
   menu.style.top = (rect.bottom + 4) + 'px';
   menu.style.left = rect.left + 'px';
   const items = [
-    { icon: '📦', label: lang === 'fr' ? 'Archive Studio (.zip)' : 'Studio Archive (.zip)',
-      sub:   lang === 'fr' ? 'Réimporter dans Studio Pro' : 'Re-import into Studio Pro',
+    { icon: '📦', label: currentLang === 'fr' ? 'Archive Studio (.zip)' : 'Studio Archive (.zip)',
+      sub:   currentLang === 'fr' ? 'Réimporter dans Studio Pro' : 'Re-import into Studio Pro',
       fn: exportZip },
-    { icon: '🚀', label: lang === 'fr' ? 'Widget déployable (.zip)' : 'Deployable Widget (.zip)',
-      sub:   lang === 'fr' ? 'Héberger & partager avec tous' : 'Host & share with everyone',
+    { icon: '🚀', label: currentLang === 'fr' ? 'Widget déployable (.zip)' : 'Deployable Widget (.zip)',
+      sub:   currentLang === 'fr' ? 'Héberger & partager avec tous' : 'Host & share with everyone',
       fn: exportGristWidget }
   ];
   items.forEach(({ icon, label, sub, fn }) => {
@@ -1670,7 +1670,7 @@ async function exportGristWidget() {
   a.download = slug + '-grist-widget.zip';
   a.click();
   URL.revokeObjectURL(url);
-  showToast(lang === 'fr' ? '🚀 Widget déployable exporté !' : '🚀 Deployable widget exported!', 'success');
+  showToast(currentLang === 'fr' ? '🚀 Widget déployable exporté !' : '🚀 Deployable widget exported!', 'success');
 }
 
 async function exportZip() {

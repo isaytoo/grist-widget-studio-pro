@@ -676,9 +676,14 @@ function markDirty(filename) {
 const GRIST_PROXY_SCRIPT = `
 (function(){
   function dbg(msg){parent.postMessage({type:'__studio_console',level:'info',args:['[GristProxy] '+msg]},'*');}
+  // Force-define a property even if grist-plugin-api set it non-configurable
+  function def(obj,prop,val){
+    try{Object.defineProperty(obj,prop,{configurable:true,writable:true,value:val});}
+    catch(e){try{obj[prop]=val;}catch(e2){dbg('cannot override '+prop);}}
+  }
   function install(){
     if(typeof grist==='undefined'){setTimeout(install,20);return;}
-    dbg('installed, grist='+typeof grist);
+    dbg('installed');
     var pending={},seq=0;
     window.addEventListener('message',function(e){
       if(!e.data)return;
@@ -687,27 +692,29 @@ const GRIST_PROXY_SCRIPT = `
         if(cb){delete pending[e.data.id];e.data.err?cb.reject(new Error(e.data.err)):cb.resolve(e.data.result);}
       }
       if(e.data.type==='__gp_evt'){
-        dbg('evt '+e.data.ev);
+        dbg('evt:'+e.data.ev);
         if(e.data.ev==='options'&&window.__gpOptCb)window.__gpOptCb(e.data.d);
         if(e.data.ev==='record'&&window.__gpRecCb)window.__gpRecCb(e.data.d);
         if(e.data.ev==='records'&&window.__gpRecsCb)window.__gpRecsCb(e.data.d,e.data.m);
       }
     });
     function call(method,args){
-      dbg('call '+method);
+      dbg('call:'+method);
       return new Promise(function(res,rej){
         var id=++seq;pending[id]={resolve:res,reject:rej};
         parent.postMessage({type:'__gp_req',id:id,method:method,args:args||[]},'*');
-        setTimeout(function(){if(pending[id]){delete pending[id];dbg('TIMEOUT '+method);rej(new Error('Grist proxy timeout: '+method));}},10000);
+        setTimeout(function(){if(pending[id]){delete pending[id];dbg('TIMEOUT:'+method);rej(new Error('timeout:'+method));}},10000);
       });
     }
-    grist.docApi=new Proxy({},{get:function(_,p){return function(){return call('docApi.'+p,Array.from(arguments));};}}); 
-    grist.ready=function(o){dbg('ready called');parent.postMessage({type:'__gp_ready',opts:o||{}},'*');};
-    grist.onOptions=function(cb){dbg('onOptions registered');window.__gpOptCb=cb;};
-    grist.onRecord=function(cb){window.__gpRecCb=cb;};
-    grist.onRecords=function(cb){window.__gpRecsCb=cb;};
-    grist.setOptions=function(o){return call('setOptions',[o]);};
-    grist.getOptions=function(){return call('getOptions',[]);};
+    var docApiProxy=new Proxy({},{get:function(_,p){return function(){return call('docApi.'+p,Array.from(arguments));};}});
+    def(grist,'docApi',docApiProxy);
+    def(grist,'ready',function(o){dbg('ready');parent.postMessage({type:'__gp_ready',opts:o||{}},'*');});
+    def(grist,'onOptions',function(cb){dbg('onOptions');window.__gpOptCb=cb;});
+    def(grist,'onRecord',function(cb){window.__gpRecCb=cb;});
+    def(grist,'onRecords',function(cb){window.__gpRecsCb=cb;});
+    def(grist,'setOptions',function(o){return call('setOptions',[o]);});
+    def(grist,'getOptions',function(){return call('getOptions',[]);});
+    dbg('overrides applied, docApi='+typeof grist.docApi);
     parent.postMessage({type:'__gp_ping'},'*');
   }
   install();

@@ -534,6 +534,7 @@ require(['vs/editor/editor.main'], function () {
   initApiTester();
   setupEventListeners();
   refreshTables();
+  renderApiList();
 });
 
 function getLanguageFromFile(filename) {
@@ -1067,6 +1068,119 @@ function formatSize(bytes) {
   return (bytes / 1024 / 1024).toFixed(1) + ' MB';
 }
 
+// ============ API COLLECTIONS ============
+// Persisted in state.project.apis as [{ id, name, method, url, headers, params, authType, authValues, bodyType, bodyContent }]
+
+function captureApiRequest() {
+  const authType = document.getElementById('authType').value;
+  const authValues = {};
+  if (authType === 'bearer') authValues.token = (document.getElementById('authBearer') || {}).value || '';
+  else if (authType === 'basic') {
+    authValues.user = (document.getElementById('authUser') || {}).value || '';
+    authValues.pass = (document.getElementById('authPass') || {}).value || '';
+  } else if (authType === 'apikey') {
+    authValues.name = (document.getElementById('apiKeyName') || {}).value || '';
+    authValues.value = (document.getElementById('apiKeyValue') || {}).value || '';
+  }
+  return {
+    method: document.getElementById('apiMethod').value,
+    url: document.getElementById('apiUrl').value.trim(),
+    headers: getKvValues('headersEditor'),
+    params: getKvValues('paramsEditor'),
+    authType, authValues,
+    bodyType: document.getElementById('bodyType').value,
+    bodyContent: document.getElementById('bodyContent').value
+  };
+}
+
+function saveCurrentApiRequest() {
+  const req = captureApiRequest();
+  if (!req.url) {
+    showToast(currentLang === 'fr' ? "Renseigne d'abord une URL dans l'onglet API" : 'Set a URL in the API tab first', 'error');
+    document.querySelector('.preview-tab[data-tab="api"]').click();
+    return;
+  }
+  const defaultName = req.method + ' ' + req.url.replace(/^https?:\/\//, '').split('/')[0];
+  const name = prompt(currentLang === 'fr' ? 'Nom de la requête :' : 'Request name:', defaultName);
+  if (!name) return;
+  state.project.apis = state.project.apis || [];
+  state.project.apis.push(Object.assign({ id: Date.now(), name }, req));
+  renderApiList();
+  showToast(currentLang === 'fr' ? 'API sauvegardée' : 'API saved', 'success');
+}
+
+function removeApi(id) {
+  if (!confirm(currentLang === 'fr' ? 'Supprimer cette requête ?' : 'Delete this request?')) return;
+  state.project.apis = (state.project.apis || []).filter(a => a.id !== id);
+  renderApiList();
+}
+
+function loadApiToTester(id) {
+  const api = (state.project.apis || []).find(a => a.id === id);
+  if (!api) return;
+
+  document.querySelector('.preview-tab[data-tab="api"]').click();
+  document.getElementById('apiMethod').value = api.method || 'GET';
+  document.getElementById('apiUrl').value = api.url || '';
+  document.getElementById('bodyType').value = api.bodyType || 'none';
+  document.getElementById('bodyContent').value = api.bodyContent || '';
+
+  // Headers
+  document.getElementById('headersEditor').innerHTML = '';
+  const hdrs = api.headers || {};
+  if (Object.keys(hdrs).length === 0) addKvRow('headersEditor', 'Content-Type', 'application/json');
+  else Object.entries(hdrs).forEach(([k, v]) => addKvRow('headersEditor', k, v));
+
+  // Params
+  document.getElementById('paramsEditor').innerHTML = '';
+  Object.entries(api.params || {}).forEach(([k, v]) => addKvRow('paramsEditor', k, v));
+
+  // Auth
+  const authSel = document.getElementById('authType');
+  authSel.value = api.authType || 'none';
+  authSel.dispatchEvent(new Event('change'));
+  setTimeout(() => {
+    const av = api.authValues || {};
+    if (api.authType === 'bearer' && document.getElementById('authBearer')) document.getElementById('authBearer').value = av.token || '';
+    else if (api.authType === 'basic') {
+      if (document.getElementById('authUser')) document.getElementById('authUser').value = av.user || '';
+      if (document.getElementById('authPass')) document.getElementById('authPass').value = av.pass || '';
+    } else if (api.authType === 'apikey') {
+      if (document.getElementById('apiKeyName')) document.getElementById('apiKeyName').value = av.name || '';
+      if (document.getElementById('apiKeyValue')) document.getElementById('apiKeyValue').value = av.value || '';
+    }
+  }, 0);
+}
+
+function renderApiList() {
+  const list = document.getElementById('apiList');
+  if (!list) return;
+  const apis = state.project.apis || [];
+  if (apis.length === 0) {
+    list.innerHTML = `<div class="empty-state" data-i18n="noApi">${t('noApi')}</div>`;
+    return;
+  }
+  list.innerHTML = apis.map(a => `
+    <div class="api-item" data-api-id="${a.id}" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12px;">
+      <span style="font-weight:700;font-size:10px;padding:2px 6px;border-radius:4px;background:#1e293b;color:#60a5fa;">${a.method}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${a.url.replace(/"/g, '&quot;')}">${a.name}</span>
+      <button class="btn-tiny" data-api-remove="${a.id}" title="${currentLang === 'fr' ? 'Supprimer' : 'Delete'}" style="opacity:0.6;">✕</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('.api-item').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.dataset.apiRemove) return;
+      loadApiToTester(parseInt(el.dataset.apiId));
+    });
+  });
+  list.querySelectorAll('[data-api-remove]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      removeApi(parseInt(btn.dataset.apiRemove));
+    });
+  });
+}
+
 // ============ NETWORK ============
 function addNetworkEntry(entry) {
   entry.time = new Date().toLocaleTimeString();
@@ -1198,6 +1312,7 @@ async function loadTemplate(id) {
   renderFileTree();
   renderTabs();
   renderPackages();
+  renderApiList();
   runPreview();
   closeModal('modalTemplates');
   showToast(t('toastTemplateLoaded'), 'success');
@@ -1306,6 +1421,7 @@ function loadProject(project) {
   renderFileTree();
   renderTabs();
   renderPackages();
+  renderApiList();
   runPreview();
 }
 
@@ -2083,6 +2199,7 @@ function setupEventListeners() {
   
   // Sidebar
   document.getElementById('btnAddFile').addEventListener('click', addFile);
+  document.getElementById('btnAddApi').addEventListener('click', saveCurrentApiRequest);
   document.getElementById('btnRefreshTables').addEventListener('click', refreshTables);
   
   // Preview tabs

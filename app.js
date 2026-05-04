@@ -1700,6 +1700,8 @@ URL finale à coller : <code>https://ton-domaine.fr/</code></p>
 
 // ============ UI HELPERS ============
 // ============ MODERN CONFIRM DIALOG ============
+// Fully self-contained with inline styles so it works even after document.write()
+// when style.css is no longer loaded (installed widget mode).
 function showConfirm(message, { confirmText, cancelText, icon = '⚠️', danger = false } = {}) {
   return new Promise((resolve) => {
     const existing = document.getElementById('studio-confirm-overlay');
@@ -1707,34 +1709,70 @@ function showConfirm(message, { confirmText, cancelText, icon = '⚠️', danger
 
     const overlay = document.createElement('div');
     overlay.id = 'studio-confirm-overlay';
-    overlay.innerHTML = `
-      <div class="sc-backdrop"></div>
-      <div class="sc-dialog" role="dialog" aria-modal="true">
-        <div class="sc-icon">${icon}</div>
-        <p class="sc-message">${message}</p>
-        <div class="sc-actions">
-          <button class="sc-btn sc-cancel">${cancelText || t('btnClose')}</button>
-          <button class="sc-btn sc-ok ${danger ? 'sc-danger' : ''}">${confirmText || 'OK'}</button>
-        </div>
-      </div>`;
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+
+    const backdrop = document.createElement('div');
+    backdrop.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0);backdrop-filter:blur(0px);transition:background 0.2s,backdrop-filter 0.2s;';
+
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.style.cssText = 'position:relative;background:#1e293b;border:1px solid #334155;border-radius:16px;padding:28px 24px 20px;max-width:360px;width:90%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,0.5),0 4px 16px rgba(0,0,0,0.3);transform:scale(0.88) translateY(14px);opacity:0;transition:transform 0.22s cubic-bezier(0.34,1.56,0.64,1),opacity 0.18s ease;';
+
+    const iconEl = document.createElement('div');
+    iconEl.style.cssText = 'font-size:38px;margin-bottom:12px;line-height:1;';
+    iconEl.textContent = icon;
+
+    const msgEl = document.createElement('p');
+    msgEl.style.cssText = 'font-size:14px;color:#f1f5f9;line-height:1.6;margin:0 0 22px;';
+    msgEl.innerHTML = message;
+
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;gap:10px;justify-content:center;';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.style.cssText = 'background:#334155;color:#cbd5e1;border:1px solid #475569;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer;min-width:90px;transition:background 0.15s;';
+    cancelBtn.textContent = cancelText || (typeof t === 'function' ? t('btnClose') : 'Annuler');
+
+    const confirmBtn = document.createElement('button');
+    const btnBg = danger ? '#ef4444' : '#3b82f6';
+    confirmBtn.style.cssText = `background:${btnBg};color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer;min-width:90px;transition:filter 0.15s,transform 0.15s;`;
+    confirmBtn.textContent = confirmText || 'OK';
+
+    cancelBtn.onmouseenter = () => { cancelBtn.style.background = '#475569'; };
+    cancelBtn.onmouseleave = () => { cancelBtn.style.background = '#334155'; };
+    confirmBtn.onmouseenter = () => { confirmBtn.style.filter = 'brightness(1.12)'; confirmBtn.style.transform = 'translateY(-1px)'; };
+    confirmBtn.onmouseleave = () => { confirmBtn.style.filter = ''; confirmBtn.style.transform = ''; };
+
+    actions.append(cancelBtn, confirmBtn);
+    dialog.append(iconEl, msgEl, actions);
+    overlay.append(backdrop, dialog);
     document.body.appendChild(overlay);
 
     // Animate in
-    requestAnimationFrame(() => overlay.classList.add('sc-visible'));
+    requestAnimationFrame(() => {
+      backdrop.style.background = 'rgba(0,0,0,0.55)';
+      backdrop.style.backdropFilter = 'blur(4px)';
+      dialog.style.transform = 'scale(1) translateY(0)';
+      dialog.style.opacity = '1';
+    });
 
     const close = (result) => {
-      overlay.classList.remove('sc-visible');
-      setTimeout(() => overlay.remove(), 200);
+      dialog.style.transform = 'scale(0.9) translateY(8px)';
+      dialog.style.opacity = '0';
+      backdrop.style.background = 'rgba(0,0,0,0)';
+      setTimeout(() => overlay.remove(), 180);
       resolve(result);
     };
 
-    overlay.querySelector('.sc-ok').addEventListener('click', () => close(true));
-    overlay.querySelector('.sc-cancel').addEventListener('click', () => close(false));
-    overlay.querySelector('.sc-backdrop').addEventListener('click', () => close(false));
-    overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(false); });
+    confirmBtn.addEventListener('click', () => close(true));
+    cancelBtn.addEventListener('click', () => close(false));
+    backdrop.addEventListener('click', () => close(false));
+    document.addEventListener('keydown', function onKey(e) {
+      if (e.key === 'Escape') { document.removeEventListener('keydown', onKey); close(false); }
+    });
 
-    // Focus confirm button
-    setTimeout(() => overlay.querySelector('.sc-ok').focus(), 50);
+    setTimeout(() => confirmBtn.focus(), 60);
   });
 }
 

@@ -673,51 +673,29 @@ function markDirty(filename) {
 // <html>/<head>/<body>/<!doctype>). User-defined <head> content (including
 // inline <style> blocks, <link>, <meta>) is preserved instead of being injected
 // into the wrapper's body.
+// Injected as the VERY FIRST script in the preview <head>.
+// Defines window.grist from scratch so grist-plugin-api.js (if present) gets
+// ignored or overwritten — no property-descriptor conflicts.
 const GRIST_PROXY_SCRIPT = `
 (function(){
-  function dbg(msg){parent.postMessage({type:'__studio_console',level:'info',args:['[GristProxy] '+msg]},'*');}
-  // Force-define a property even if grist-plugin-api set it non-configurable
-  function def(obj,prop,val){
-    try{Object.defineProperty(obj,prop,{configurable:true,writable:true,value:val});}
-    catch(e){try{obj[prop]=val;}catch(e2){dbg('cannot override '+prop);}}
-  }
-  function install(){
-    if(typeof grist==='undefined'){setTimeout(install,20);return;}
-    dbg('installed');
-    var pending={},seq=0;
-    window.addEventListener('message',function(e){
-      if(!e.data)return;
-      if(e.data.type==='__gp_res'){
-        var cb=pending[e.data.id];
-        if(cb){delete pending[e.data.id];e.data.err?cb.reject(new Error(e.data.err)):cb.resolve(e.data.result);}
-      }
-      if(e.data.type==='__gp_evt'){
-        dbg('evt:'+e.data.ev);
-        if(e.data.ev==='options'&&window.__gpOptCb)window.__gpOptCb(e.data.d);
-        if(e.data.ev==='record'&&window.__gpRecCb)window.__gpRecCb(e.data.d);
-        if(e.data.ev==='records'&&window.__gpRecsCb)window.__gpRecsCb(e.data.d,e.data.m);
-      }
-    });
-    function call(method,args){
-      dbg('call:'+method);
-      return new Promise(function(res,rej){
-        var id=++seq;pending[id]={resolve:res,reject:rej};
-        parent.postMessage({type:'__gp_req',id:id,method:method,args:args||[]},'*');
-        setTimeout(function(){if(pending[id]){delete pending[id];dbg('TIMEOUT:'+method);rej(new Error('timeout:'+method));}},10000);
-      });
-    }
-    var docApiProxy=new Proxy({},{get:function(_,p){return function(){return call('docApi.'+p,Array.from(arguments));};}});
-    def(grist,'docApi',docApiProxy);
-    def(grist,'ready',function(o){dbg('ready');parent.postMessage({type:'__gp_ready',opts:o||{}},'*');});
-    def(grist,'onOptions',function(cb){dbg('onOptions');window.__gpOptCb=cb;});
-    def(grist,'onRecord',function(cb){window.__gpRecCb=cb;});
-    def(grist,'onRecords',function(cb){window.__gpRecsCb=cb;});
-    def(grist,'setOptions',function(o){return call('setOptions',[o]);});
-    def(grist,'getOptions',function(){return call('getOptions',[]);});
-    dbg('overrides applied, docApi='+typeof grist.docApi);
-    parent.postMessage({type:'__gp_ping'},'*');
-  }
-  install();
+  var pending={},seq=0;
+  window.addEventListener('message',function(e){
+    if(!e.data)return;
+    if(e.data.type==='__gp_res'){var cb=pending[e.data.id];if(cb){delete pending[e.data.id];e.data.err?cb.reject(new Error(e.data.err)):cb.resolve(e.data.result);}}
+    if(e.data.type==='__gp_evt'){if(e.data.ev==='options'&&window.__gpOptCb)window.__gpOptCb(e.data.d);if(e.data.ev==='record'&&window.__gpRecCb)window.__gpRecCb(e.data.d);if(e.data.ev==='records'&&window.__gpRecsCb)window.__gpRecsCb(e.data.d,e.data.m);}
+  });
+  function call(m,a){return new Promise(function(res,rej){var id=++seq;pending[id]={resolve:res,reject:rej};parent.postMessage({type:'__gp_req',id:id,method:m,args:a||[]},'*');setTimeout(function(){if(pending[id]){delete pending[id];rej(new Error('timeout:'+m));}},10000);});}
+  // Define grist BEFORE any other script runs — replaces grist-plugin-api.js entirely
+  window.grist={
+    ready:function(o){parent.postMessage({type:'__gp_ready',opts:o||{}},'*');},
+    onOptions:function(cb){window.__gpOptCb=cb;},
+    onRecord:function(cb){window.__gpRecCb=cb;},
+    onRecords:function(cb){window.__gpRecsCb=cb;},
+    setOptions:function(o){return call('setOptions',[o]);},
+    getOptions:function(){return call('getOptions',[]);},
+    docApi:new Proxy({},{get:function(_,p){return function(){return call('docApi.'+p,Array.from(arguments));};}})
+  };
+  parent.postMessage({type:'__gp_ping'},'*');
 })();
 `;
 
@@ -731,6 +709,7 @@ function composeFullPage({ html, css, js, packages, withConsoleProbe, withGristP
   }).join('\n');
 
   const gristApi = `<script src="https://docs.getgrist.com/grist-plugin-api.js"></` + `script>`;
+  // In proxy mode: inject grist replacement as first script, strip grist-plugin-api.js
   const gristProxy = withGristProxy ? `<script>${GRIST_PROXY_SCRIPT}</` + `script>` : '';
 
   const consoleScript = withConsoleProbe ? `<script>
@@ -757,21 +736,27 @@ function composeFullPage({ html, css, js, packages, withConsoleProbe, withGristP
 
   if (isFullDoc) {
     let out = html;
-    const headInjection = `\n${gristApi}\n${gristProxy}\n${packageTags}\n${userStyle}\n`;
-    if (/<\/head>/i.test(out)) {
-      out = out.replace(/<\/head>/i, headInjection + '</head>');
-    } else if (/<head[^>]*>/i.test(out)) {
-      out = out.replace(/<head([^>]*)>/i, '<head$1>' + headInjection);
-    } else if (/<html[^>]*>/i.test(out)) {
-      out = out.replace(/<html([^>]*)>/i, '<html$1>\n<head>' + headInjection + '</head>');
-    } else {
-      out = `<head>${headInjection}</head>\n` + out;
+    // Strip any existing grist-plugin-api.js when proxy mode is on
+    if (withGristProxy) {
+      out = out.replace(/<script[^>]+grist-plugin-api[^>]*><\/script>/gi, '');
     }
-    const bodyInjection = `\n${consoleScript}\n${userScript}\n`;
-    if (/<\/body>/i.test(out)) {
-      out = out.replace(/<\/body>/i, bodyInjection + '</body>');
+    // In proxy mode: proxy script goes FIRST so window.grist is defined before anything else.
+    // In normal mode: grist-plugin-api.js is injected before </head>.
+    const headInject = withGristProxy
+      ? `\n${gristProxy}\n${packageTags}\n${userStyle}\n`
+      : `\n${gristApi}\n${packageTags}\n${userStyle}\n`;
+    if (/<head[^>]*>/i.test(out)) {
+      out = out.replace(/<head([^>]*)>/i, '<head$1>' + headInject);
+    } else if (/<html[^>]*>/i.test(out)) {
+      out = out.replace(/<html([^>]*)>/i, '<html$1>\n<head>' + headInject + '</head>');
     } else {
-      out += bodyInjection;
+      out = `<head>${headInject}</head>\n` + out;
+    }
+    const bodyInject = `\n${consoleScript}\n${userScript}\n`;
+    if (/<\/body>/i.test(out)) {
+      out = out.replace(/<\/body>/i, bodyInject + '</body>');
+    } else {
+      out += bodyInject;
     }
     return out;
   }
@@ -780,7 +765,7 @@ function composeFullPage({ html, css, js, packages, withConsoleProbe, withGristP
 <html>
 <head>
 <meta charset="UTF-8">
-${gristApi}
+${withGristProxy ? gristProxy : gristApi}
 ${packageTags}
 ${userStyle}
 </head>

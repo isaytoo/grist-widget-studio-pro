@@ -675,24 +675,35 @@ function markDirty(filename) {
 // into the wrapper's body.
 const GRIST_PROXY_SCRIPT = `
 (function(){
+  function dbg(msg){parent.postMessage({type:'__studio_console',level:'info',args:['[GristProxy] '+msg]},'*');}
   function install(){
     if(typeof grist==='undefined'){setTimeout(install,20);return;}
+    dbg('installed, grist='+typeof grist);
     var pending={},seq=0;
     window.addEventListener('message',function(e){
       if(!e.data)return;
-      if(e.data.type==='__gp_res'){var cb=pending[e.data.id];if(cb){delete pending[e.data.id];e.data.err?cb.reject(new Error(e.data.err)):cb.resolve(e.data.result);}}
-      if(e.data.type==='__gp_evt'){if(e.data.ev==='options'&&window.__gpOptCb)window.__gpOptCb(e.data.d);if(e.data.ev==='record'&&window.__gpRecCb)window.__gpRecCb(e.data.d);if(e.data.ev==='records'&&window.__gpRecsCb)window.__gpRecsCb(e.data.d,e.data.m);}
+      if(e.data.type==='__gp_res'){
+        var cb=pending[e.data.id];
+        if(cb){delete pending[e.data.id];e.data.err?cb.reject(new Error(e.data.err)):cb.resolve(e.data.result);}
+      }
+      if(e.data.type==='__gp_evt'){
+        dbg('evt '+e.data.ev);
+        if(e.data.ev==='options'&&window.__gpOptCb)window.__gpOptCb(e.data.d);
+        if(e.data.ev==='record'&&window.__gpRecCb)window.__gpRecCb(e.data.d);
+        if(e.data.ev==='records'&&window.__gpRecsCb)window.__gpRecsCb(e.data.d,e.data.m);
+      }
     });
     function call(method,args){
+      dbg('call '+method);
       return new Promise(function(res,rej){
         var id=++seq;pending[id]={resolve:res,reject:rej};
         parent.postMessage({type:'__gp_req',id:id,method:method,args:args||[]},'*');
-        setTimeout(function(){if(pending[id]){delete pending[id];rej(new Error('Grist proxy timeout'));}},10000);
+        setTimeout(function(){if(pending[id]){delete pending[id];dbg('TIMEOUT '+method);rej(new Error('Grist proxy timeout: '+method));}},10000);
       });
     }
-    grist.docApi=new Proxy({},{get:function(_,p){return function(){return call('docApi.'+p,Array.from(arguments));};}});
-    grist.ready=function(o){parent.postMessage({type:'__gp_ready',opts:o||{}},'*');};
-    grist.onOptions=function(cb){window.__gpOptCb=cb;};
+    grist.docApi=new Proxy({},{get:function(_,p){return function(){return call('docApi.'+p,Array.from(arguments));};}}); 
+    grist.ready=function(o){dbg('ready called');parent.postMessage({type:'__gp_ready',opts:o||{}},'*');};
+    grist.onOptions=function(cb){dbg('onOptions registered');window.__gpOptCb=cb;};
     grist.onRecord=function(cb){window.__gpRecCb=cb;};
     grist.onRecords=function(cb){window.__gpRecsCb=cb;};
     grist.setOptions=function(o){return call('setOptions',[o]);};
@@ -827,23 +838,37 @@ window.addEventListener('message', (e) => {
   // Preview widget called a docApi / setOptions / getOptions method
   if (e.data.type === '__gp_req') {
     const { id, method, args } = e.data;
+    addConsoleEntry('info', '[Studio→Grist proxy] ' + method);
     let p;
     try {
       if (method.startsWith('docApi.')) {
         const fn = method.slice('docApi.'.length);
-        if (typeof grist?.docApi?.[fn] === 'function') p = grist.docApi[fn](...args);
-      } else if (method === 'setOptions' && state.gristReady) {
-        p = grist.setOptions(...args);
+        const docApi = grist && grist.docApi;
+        if (docApi && typeof docApi[fn] === 'function') {
+          p = docApi[fn](...(args || []));
+        } else {
+          addConsoleEntry('error', '[proxy] grist.docApi.' + fn + ' unavailable');
+          previewWin.postMessage({ type: '__gp_res', id, err: 'docApi.' + fn + ' not available' }, '*');
+          return;
+        }
+      } else if (method === 'setOptions') {
+        p = state.gristReady ? grist.setOptions(...(args || [])) : Promise.resolve();
       } else if (method === 'getOptions') {
         p = Promise.resolve(state.gristOptions || {});
       }
     } catch (err) {
+      addConsoleEntry('error', '[proxy] ' + method + ': ' + err.message);
       previewWin.postMessage({ type: '__gp_res', id, err: err.message }, '*');
       return;
     }
     if (p) {
-      p.then(r  => previewWin.postMessage({ type: '__gp_res', id, result: r }, '*'))
-       .catch(err => previewWin.postMessage({ type: '__gp_res', id, err: err.message }, '*'));
+      p.then(r => {
+        addConsoleEntry('info', '[proxy] ' + method + ' → OK');
+        previewWin.postMessage({ type: '__gp_res', id, result: r }, '*');
+      }).catch(err => {
+        addConsoleEntry('error', '[proxy] ' + method + ' → ' + err.message);
+        previewWin.postMessage({ type: '__gp_res', id, err: err.message }, '*');
+      });
     }
   }
 });

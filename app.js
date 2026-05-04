@@ -1239,56 +1239,23 @@ function downloadJson() {
 
 // ============ INSTALLED MODE RENDERER ============
 function renderInstalledWidget(html, js) {
-  // IMPORTANT: we write directly into the current document (same iframe context)
-  // so that window.parent === Grist and the Grist Plugin API works correctly.
-  // A nested iframe would break postMessage routing and prevent grist.ready() calls.
+  // IMPORTANT: we stay in the SAME window/document (same iframe) so that
+  // window.parent === Grist and the plugin API keeps working.
+  //
+  // We do NOT call document.write() because that triggers Grist's internal
+  // UrlState dispose cascade which errors on the replaced DOM nodes.
+  // Instead we swap document.body.innerHTML and keep <head> intact.
 
-  // Pre-compute translated strings before document.write() clears the DOM.
-  // showConfirm, grist and state remain accessible in the JS heap after document.write().
-  // window.__studioUninstall is defined here so the inline onclick can call it cleanly.
   window.__studioUninstall = async function() {
     const ok = await showConfirm(t('uninstallConfirm'), { icon: '✏️', confirmText: t('btnEditIde').replace('✏️ ', '') });
     if (ok) {
-      // Spread existing options so _project / _proxy etc. are preserved.
       const opts = Object.assign({}, state.gristOptions || {});
       opts._installed = false;
       grist.setOptions(opts).then(() => location.reload()).catch(() => location.reload());
     }
   };
 
-  const barLabel = t('installedMode');
-  const btnLabel = t('btnEditIde');
-
-  const barHtml = `
-    <div id="studio-installed-bar" style="position:fixed;top:0;left:0;right:0;height:28px;background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:99999;font-family:sans-serif;font-size:11px;color:#94a3b8;box-sizing:border-box;">
-      <span>⚡ Widget Studio Pro — <strong style="color:#f1f5f9;">${barLabel}</strong></span>
-      <button onclick="__studioUninstall()"
-        style="background:#3b82f6;color:white;border:none;border-radius:4px;padding:2px 10px;cursor:pointer;font-size:11px;">${btnLabel}</button>
-    </div>
-    <div style="height:28px;flex-shrink:0;"></div>`;
-
-  // Build full page content
-  const isFullDoc = /<html[\s>]/i.test(html) || /<!doctype/i.test(html);
-  let fullContent;
-  if (isFullDoc) {
-    fullContent = html
-      .replace(/<body([^>]*)>/i, `<body$1>\n${barHtml}`)
-      .replace('</head>', `<style>body{padding-top:0 !important;}</style>\n</head>`);
-  } else {
-    fullContent = `<!DOCTYPE html><html><head>
-<meta charset="UTF-8">
-<script src="https://docs.getgrist.com/grist-plugin-api.js"><\/script>
-<style>html,body{margin:0;padding:0;height:100%;}</style>
-</head><body>
-${barHtml}
-${html}
-<script>${js}<\/script>
-</body></html>`;
-  }
-
-  // Fully tear down Monaco before replacing the document.
-  // Monaco queues requestAnimationFrame callbacks internally; we must let them
-  // flush (2 rAF ticks) AFTER dispose so no callback fires on dead DOM nodes.
+  // Tear down Monaco (dispose + null refs so no stale rAF callbacks fire)
   try {
     if (state.editor) { state.editor.dispose(); state.editor = null; }
     Object.values(state.models).forEach(m => { try { m.dispose(); } catch (_) {} });
@@ -1296,11 +1263,52 @@ ${html}
     state.monaco = null;
   } catch (_) {}
 
-  // Two rAF ticks ensure all Monaco-queued micro/macro tasks have run.
+  // 2 rAF ticks let Monaco's already-queued callbacks run before we wipe the DOM
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    document.open();
-    document.write(fullContent);
-    document.close();
+    // Reset <body> styles
+    document.body.style.cssText = 'margin:0;padding:0;height:100%;overflow:auto;';
+
+    // Build the bar element
+    const bar = document.createElement('div');
+    bar.id = 'studio-installed-bar';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:28px;background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:99999;font-family:sans-serif;font-size:11px;color:#94a3b8;box-sizing:border-box;';
+    bar.innerHTML = `<span>⚡ Widget Studio Pro — <strong style="color:#f1f5f9;">${t('installedMode')}</strong></span>
+      <button onclick="__studioUninstall()" style="background:#3b82f6;color:white;border:none;border-radius:4px;padding:2px 10px;cursor:pointer;font-size:11px;">${t('btnEditIde')}</button>`;
+
+    // Widget container (below bar)
+    const container = document.createElement('div');
+    container.id = 'studio-widget-root';
+    container.style.cssText = 'position:fixed;top:28px;left:0;right:0;bottom:0;overflow:auto;';
+
+    // Strip outer <html>/<head>/<body> if present — we only need the body content
+    let bodyContent = html;
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    if (bodyMatch) bodyContent = bodyMatch[1];
+    // Remove any <head>…</head> block that may still be in html
+    bodyContent = bodyContent.replace(/<head[\s\S]*?<\/head>/gi, '');
+
+    // Inject HTML (scripts won't execute via innerHTML — handled below)
+    container.innerHTML = bodyContent;
+
+    // Re-execute <script> tags (innerHTML skips them)
+    container.querySelectorAll('script').forEach(old => {
+      const s = document.createElement('script');
+      [...old.attributes].forEach(a => s.setAttribute(a.name, a.value));
+      s.textContent = old.textContent;
+      old.replaceWith(s);
+    });
+
+    // Swap body content
+    document.body.innerHTML = '';
+    document.body.appendChild(bar);
+    document.body.appendChild(container);
+
+    // Append widget JS as a new script tag so it runs in the current context
+    if (js && js.trim()) {
+      const s = document.createElement('script');
+      s.textContent = js;
+      document.body.appendChild(s);
+    }
   }));
 }
 

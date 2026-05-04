@@ -408,6 +408,7 @@ try {
 
   grist.onOptions(async (options) => {
     state.gristReady = true;
+    state.gristOptions = options || {};  // preserve full options for safe setOptions calls
 
     // Mode widget installé : afficher le rendu final au lieu de l'IDE
     if (options && options._installed && options._html) {
@@ -1225,18 +1226,25 @@ function renderInstalledWidget(html, js) {
   // A nested iframe would break postMessage routing and prevent grist.ready() calls.
 
   // Pre-compute translated strings before document.write() clears the DOM.
-  // showConfirm and grist remain accessible in the JS heap after document.write(),
-  // so the onclick handler can reference them directly.
-  const uninstallMsg   = t('uninstallConfirm').replace(/'/g, "\\'");
-  const confirmLabel   = t('btnEditIde').replace('✏️ ', '').replace(/'/g, "\\'");
-  const cancelLabel    = t('btnClose').replace(/'/g, "\\'");
-  const barLabel       = t('installedMode');
-  const btnLabel       = t('btnEditIde');
+  // showConfirm, grist and state remain accessible in the JS heap after document.write().
+  // window.__studioUninstall is defined here so the inline onclick can call it cleanly.
+  window.__studioUninstall = async function() {
+    const ok = await showConfirm(t('uninstallConfirm'), { icon: '✏️', confirmText: t('btnEditIde').replace('✏️ ', '') });
+    if (ok) {
+      // Spread existing options so _project / _proxy etc. are preserved.
+      const opts = Object.assign({}, state.gristOptions || {});
+      opts._installed = false;
+      grist.setOptions(opts).then(() => location.reload()).catch(() => location.reload());
+    }
+  };
+
+  const barLabel = t('installedMode');
+  const btnLabel = t('btnEditIde');
 
   const barHtml = `
     <div id="studio-installed-bar" style="position:fixed;top:0;left:0;right:0;height:28px;background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:99999;font-family:sans-serif;font-size:11px;color:#94a3b8;box-sizing:border-box;">
       <span>⚡ Widget Studio Pro — <strong style="color:#f1f5f9;">${barLabel}</strong></span>
-      <button onclick="showConfirm('${uninstallMsg}',{icon:'✏️',confirmText:'${confirmLabel}',cancelText:'${cancelLabel}'}).then(function(ok){if(ok)grist.setOptions({_installed:false}).then(function(){location.reload()}).catch(function(){location.reload()});})"
+      <button onclick="__studioUninstall()"
         style="background:#3b82f6;color:white;border:none;border-radius:4px;padding:2px 10px;cursor:pointer;font-size:11px;">${btnLabel}</button>
     </div>
     <div style="height:28px;flex-shrink:0;"></div>`;
@@ -1269,7 +1277,9 @@ ${html}
 async function uninstallWidget() {
   if (!await showConfirm(t('uninstallConfirm'), { icon: '✏️', confirmText: t('btnEditIde').replace('✏️ ', '') })) return;
   try {
-    await grist.setOptions({ _installed: false });
+    const opts = Object.assign({}, state.gristOptions || {});
+    opts._installed = false;
+    await grist.setOptions(opts);
     location.reload();
   } catch (e) {
     location.reload();

@@ -1286,13 +1286,22 @@ ${html}
 </body></html>`;
   }
 
-  // Dispose Monaco editor to prevent DOM errors after document.write() destroys its nodes.
-  if (state.editor) { try { state.editor.dispose(); } catch (e) { /* ignore */ } }
+  // Fully tear down Monaco before replacing the document.
+  // Monaco queues requestAnimationFrame callbacks internally; we must let them
+  // flush (2 rAF ticks) AFTER dispose so no callback fires on dead DOM nodes.
+  try {
+    if (state.editor) { state.editor.dispose(); state.editor = null; }
+    Object.values(state.models).forEach(m => { try { m.dispose(); } catch (_) {} });
+    state.models = {};
+    state.monaco = null;
+  } catch (_) {}
 
-  // Write into current window — no DOM access needed after this point.
-  document.open();
-  document.write(fullContent);
-  document.close();
+  // Two rAF ticks ensure all Monaco-queued micro/macro tasks have run.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.open();
+    document.write(fullContent);
+    document.close();
+  }));
 }
 
 async function uninstallWidget() {

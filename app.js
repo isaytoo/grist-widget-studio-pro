@@ -1278,20 +1278,40 @@ function renderInstalledWidget(html, js) {
       document.head.appendChild(reset);
     }
 
-    // ── 3. Extract body content from html (strip <html>/<head>/<body> wrappers)
-    let bodyContent = html;
-    const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-    if (bodyMatch) bodyContent = bodyMatch[1];
-    bodyContent = bodyContent.replace(/<head[\s\S]*?<\/head>/gi, '');
-
-    // ── 4. Parse into a temp container so we can hoist <style> tags to <head>
-    const tmp = document.createElement('div');
-    tmp.innerHTML = bodyContent;
-    tmp.querySelectorAll('style').forEach(s => {
-      document.head.appendChild(s); // move widget CSS to <head> for proper cascade
+    // ── 3. Extract ALL <style> tags from the full _html string.
+    //       installWidget() builds _html as: packageTags + <style>css</style> + index.html
+    //       so the CSS lives BEFORE <body> and a plain bodyMatch regex misses it.
+    const collectedStyles = [];
+    const htmlNoStyles = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, m => {
+      collectedStyles.push(m);
+      return '';
+    });
+    // Inject all collected styles into <head>
+    collectedStyles.forEach(styleStr => {
+      const wrap = document.createElement('div');
+      wrap.innerHTML = styleStr;
+      const el = wrap.querySelector('style');
+      if (el) document.head.appendChild(el);
     });
 
-    // ── 5. Build bar
+    // ── 4. Extract body markup (no styles left in htmlNoStyles)
+    let bodyContent = htmlNoStyles;
+    const bodyMatch = htmlNoStyles.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    if (bodyMatch) {
+      bodyContent = bodyMatch[1];
+    } else {
+      // No <body> wrapper — strip any remaining html/head/body tags
+      bodyContent = htmlNoStyles
+        .replace(/<html[^>]*>|<\/html>/gi, '')
+        .replace(/<head[\s\S]*?<\/head>/gi, '')
+        .replace(/<body[^>]*>|<\/body>/gi, '');
+    }
+
+    // ── 5. Parse into temp container
+    const tmp = document.createElement('div');
+    tmp.innerHTML = bodyContent;
+
+    // ── 6. Build bar
     const bar = document.createElement('div');
     bar.id = 'studio-installed-bar';
     bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:28px;background:#1e293b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:99999;font-family:sans-serif;font-size:11px;color:#94a3b8;box-sizing:border-box;';
